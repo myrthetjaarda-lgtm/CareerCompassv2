@@ -1,1 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerCompass - People Ops Job Search Intelligence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --dark: #1a1a1a;
+            --cream: #f5f1ed;
+            --accent: #D4853A;
+            --text: #2a2a2a;
+            --muted: #787470;
+            --border: #e0d5c7;
+            --light: #fafaf8;
+        }
+        body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); }
+        .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--cream) 0%, #f9f6f0 100%); }
+        .auth-card { background: white; padding: 3rem; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+        .auth-logo { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: var(--accent); margin-bottom: 2rem; text-align: center; }
+        .auth-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .auth-subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 500; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text); }
+        input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(212,133,58,0.1); }
+        .btn { padding: 0.75rem 1.5rem; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.95rem; transition: all 0.2s; width: 100%; }
+        .btn:hover { background: #c0733a; }
+        .btn-secondary { background: var(--light); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
+        .auth-divider { text-align: center; margin: 2rem 0; color: var(--muted); font-size: 0.9rem; }
+        .auth-divider::before { content: ''; display: block; height: 1px; background: var(--border); margin-bottom: 1rem; }
+        .auth-divider::after { content: ''; display: block; height: 1px; background: var(--border); margin-top: 1rem; }
+        .auth-toggle { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 1.5rem; }
+        .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 500; }
+        .error { color: #dc2626; font-size: 0.9rem; margin-top: 0.5rem; }
+        .app-container { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+        .sidebar { background: var(--dark); padding: 2rem 1.5rem; position: fixed; width: 280px; height: 100vh; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.1); z-index: 100; display: flex; flex-direction: column; }
+        .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--accent); margin-bottom: 2rem; }
+        .user-info { padding: 1rem; background: rgba(212,133,58,0.1); border-radius: 4px; margin-bottom: 2rem; font-size: 0.85rem; }
+        .user-email { color: rgba(245,241,237,0.8); margin-bottom: 0.5rem; word-break: break-all; }
+        .user-tier { color: var(--accent); font-weight: 600; }
+        .nav-section { margin-bottom: 2rem; }
+        .nav-label { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.75rem; display: block; }
+        .nav-tabs { display: flex; flex-direction: column; gap: 0.25rem; }
+        .nav-tab { padding: 0.7rem 1rem; background: transparent; border: none; color: rgba(245,241,237,0.7); text-align: left; cursor: pointer; font-size: 0.9rem; border-left: 3px solid transparent; transition: all 0.2s; font-weight: 500; }
+        .nav-tab:hover { background: rgba(212,133,58,0.1); color: #f5f1ed; }
+        .nav-tab.active { background: rgba(212,133,58,0.15); color: var(--accent); border-left-color: var(--accent); }
+        .logout-btn { padding: 0.75rem; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; font-weight: 500; width: 100%; margin-top: auto; }
+        .main { margin-left: 280px; padding: 2rem; }
+        .header { margin-bottom: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 1.5rem; }
+        .header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .header p { color: var(--muted); font-size: 0.95rem; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .section { background: white; padding: 1.5rem; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 1.5rem; }
+        .section-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .stat-box { background: var(--light); border: 1px solid var(--border); border-radius: 4px; padding: 1.5rem; text-align: center; }
+        .stat-number { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; }
+        .app-card { background: var(--light); border: 1px solid var(--border); border-radius: 4px; padding: 1.25rem; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem; }
+        .app-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(212,133,58,0.1); }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } .app-container { grid-template-columns: 1fr; } .sidebar { position: fixed; transform: translateX(-100%); width: 240px; } .main { margin-left: 0; } }
+    </style>
+</head>
+<body>
+    <div id="auth-view" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">CareerCompass</div>
+            <div id="signin-form">
+                <div class="auth-title">Sign In</div>
+                <div class="auth-subtitle">Track your People Ops job search</div>
+                <div class="form-group"><label>Email</label><input type="email" id="signin-email" placeholder="your@email.com"></div>
+                <div class="form-group"><label>Password</label><input type="password" id="signin-password" placeholder="••••••••"></div>
+                <div id="signin-error" class="error"></div>
+                <button class="btn" onclick="signIn()">Sign In</button>
+                <div class="auth-divider">or</div>
+                <button class="btn btn-secondary" onclick="signInGoogle()">Sign in with Google</button>
+                <div class="auth-toggle">Don't have an account? <a onclick="switchToSignup()">Sign up</a></div>
+            </div>
+            <div id="signup-form" style="display: none;">
+                <div class="auth-title">Create Account</div>
+                <div class="auth-subtitle">Start tracking your job search</div>
+                <div class="form-group"><label>Email</label><input type="email" id="signup-email" placeholder="your@email.com"></div>
+                <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="••••••••"></div>
+                <div id="signup-error" class="error"></div>
+                <button class="btn" onclick="signUp()">Sign Up</button>
+                <div class="auth-divider">or</div>
+                <button class="btn btn-secondary" onclick="signUpGoogle()">Sign up with Google</button>
+                <div class="auth-toggle">Already have an account? <a onclick="switchToSignin()">Sign in</a></div>
+            </div>
+        </div>
+    </div>
 
+    <div id="app-view" style="display: none;">
+        <div class="app-container">
+            <div class="sidebar">
+                <div><div class="logo">CareerCompass</div>
+                <div class="user-info"><div class="user-email" id="user-email-display"></div><div class="user-tier" id="user-tier-display">Free</div></div>
+                <div class="nav-section"><span class="nav-label">Search</span><div class="nav-tabs"><button class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</button><button class="nav-tab" onclick="switchTab('opportunities')">Opportunities</button></div></div>
+                <div class="nav-section"><span class="nav-label">Intelligence</span><div class="nav-tabs"><button class="nav-tab" onclick="switchTab('assessment')">Company Assessment</button><button class="nav-tab" onclick="switchTab('compensation')">Compensation</button><button class="nav-tab" onclick="switchTab('interview')">Interview Strategy</button></div></div>
+                <div class="nav-section"><span class="nav-label">Germany</span><div class="nav-tabs"><button class="nav-tab" onclick="switchTab('germany')">Employment Guide</button><button class="nav-tab" onclick="switchTab('docs')">Documents</button></div></div></div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+
+            <div class="main">
+                <div id="dashboard" class="tab-content active"><div class="header"><h1>Dashboard</h1><p>Your People Ops job search intelligence</p></div><div class="grid-2"><div class="stat-box"><div class="stat-number" id="stat-total">0</div><div class="stat-label">Opportunities</div></div><div class="stat-box"><div class="stat-number" id="stat-assessed">0</div><div class="stat-label">Assessed</div></div></div><div class="section"><div class="section-title">Active Opportunities</div><div id="recent-opps"></div></div></div>
+
+                <div id="opportunities" class="tab-content"><div class="header"><h1>Opportunities</h1><p>Track People Ops roles</p></div><div class="section"><button class="btn" onclick="openNewOppModal()">+ New Opportunity</button></div><div id="opps-list"></div></div>
+
+                <div id="assessment" class="tab-content"><div class="header"><h1>Company Assessment</h1><p>Evaluate People Ops maturity</p></div><div class="section"><div class="section-title">HRIS & Systems</div><div class="form-group"><label>Select Opportunity</label><select id="assess-opp"><option value="">Choose...</option></select></div><button class="btn" style="width: 100%;">Save Assessment</button></div></div>
+
+                <div id="compensation" class="tab-content"><div class="header"><h1>Compensation Analysis</h1><p>German salary breakdown</p></div><div class="section"><div class="form-group"><label>Annual Gross (€)</label><input type="number" id="comp-gross" placeholder="120000"></div><button class="btn" onclick="calculateNet()" style="width: 100%;">Calculate</button><div style="margin-top: 1rem; padding: 1rem; background: var(--light); border-radius: 4px;"><strong>Net:</strong> <span id="calc-net">€0</span>/month</div></div></div>
+
+                <div id="interview" class="tab-content"><div class="header"><h1>Interview Strategy</h1><p>Critical questions</p></div><div class="section"><p style="color: var(--muted);">Interview strategy content.</p></div></div>
+
+                <div id="germany" class="tab-content"><div class="header"><h1>Germany Employment Guide</h1><p>Know your rights</p></div><div class="section"><p style="color: var(--muted);">Employment guide content.</p></div></div>
+
+                <div id="docs" class="tab-content"><div class="header"><h1>Documents & SCHUFA</h1><p>Track credentials</p></div><div class="section"><div class="form-group"><label>SCHUFA Score</label><input type="number" id="doc-schufa" placeholder="520"></div><button class="btn" style="width: 100%;">Save</button></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="oppModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 4px; padding: 2rem; max-width: 500px; width: 90%;"><h2 style="font-family: 'Playfair Display', serif; margin-bottom: 1.5rem;">New Opportunity</h2>
+            <div class="form-group"><label>Company</label><input type="text" id="opp-company" placeholder="Company name"></div>
+            <div class="form-group"><label>Role</label><input type="text" id="opp-role" placeholder="e.g., Head of People"></div>
+            <div class="form-group"><label>Status</label><select id="opp-status"><option value="saved">Saved</option><option value="applied">Applied</option><option value="interview">Interview</option></select></div>
+            <button class="btn" onclick="addOpportunity()" style="width: 100%; margin-bottom: 0.5rem;">Add</button>
+            <button class="btn btn-secondary" onclick="closeModal()" style="width: 100%;">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dxwnleokbmvbcgqnfulp.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_BvoNQ2rHQiGxid8Yy-TfsQ_KDTylpGF';
+        const { createClient } = window.supabase;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentUser = null;
+
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                currentUser = user;
+                showAppView();
+                loadUserData();
+            } else {
+                showAuthView();
+            }
+            supabase.auth.onAuthStateChange((event, session) => {
+                if (session) {
+                    currentUser = session.user;
+                    showAppView();
+                    loadUserData();
+                } else {
+                    currentUser = null;
+                    showAuthView();
+                }
+            });
+        }
+
+        function showAuthView() {
+            document.getElementById('auth-view').style.display = 'flex';
+            document.getElementById('app-view').style.display = 'none';
+        }
+
+        function showAppView() {
+            document.getElementById('auth-view').style.display = 'none';
+            document.getElementById('app-view').style.display = 'block';
+            document.getElementById('user-email-display').textContent = currentUser.email;
+        }
+
+        function switchToSignup() {
+            document.getElementById('signin-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'block';
+        }
+
+        function switchToSignin() {
+            document.getElementById('signin-form').style.display = 'block';
+            document.getElementById('signup-form').style.display = 'none';
+        }
+
+        async function signIn() {
+            const email = document.getElementById('signin-email').value;
+            const password = document.getElementById('signin-password').value;
+            try {
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+            } catch (err) {
+                document.getElementById('signin-error').textContent = err.message;
+            }
+        }
+
+        async function signUp() {
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            try {
+                const { error } = await supabase.auth.signUp({ email, password });
+                if (error) throw error;
+                document.getElementById('signup-error').textContent = 'Check email to confirm';
+            } catch (err) {
+                document.getElementById('signup-error').textContent = err.message;
+            }
+        }
+
+        async function signInGoogle() {
+            await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+        }
+
+        async function signUpGoogle() {
+            await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+        }
+
+        async function loadUserData() {
+            const { data: opps } = await supabase.from('opportunities').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+            renderOpps(opps || []);
+            updateDashboard(opps || []);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function openNewOppModal() {
+            document.getElementById('oppModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('oppModal').style.display = 'none';
+        }
+
+        async function addOpportunity() {
+            const company = document.getElementById('opp-company').value;
+            const role = document.getElementById('opp-role').value;
+            if (!company || !role) { alert('Fill all fields'); return; }
+            const { error } = await supabase.from('opportunities').insert([{
+                user_id: currentUser.id,
+                company,
+                role,
+                status: document.getElementById('opp-status').value,
+                created_at: new Date().toISOString()
+            }]);
+            if (!error) {
+                document.getElementById('opp-company').value = '';
+                document.getElementById('opp-role').value = '';
+                closeModal();
+                loadUserData();
+            }
+        }
+
+        function renderOpps(opps) {
+            const html = opps.map(o => `<div class="app-card"><div style="font-weight: 600;">${o.company}</div><div style="font-size: 0.9rem; color: var(--muted);">${o.role}</div></div>`).join('');
+            document.getElementById('opps-list').innerHTML = html || '<p style="color: var(--muted);">No opportunities yet</p>';
+        }
+
+        function updateDashboard(opps) {
+            document.getElementById('stat-total').textContent = opps.length;
+            const recent = opps.slice(0, 3).map(o => `<div style="margin-bottom: 1rem;"><strong>${o.company}</strong><br><small style="color: var(--muted);">${o.role}</small></div>`).join('');
+            document.getElementById('recent-opps').innerHTML = recent || '<p style="color: var(--muted);">No opportunities yet</p>';
+        }
+
+        function calculateNet() {
+            const gross = parseInt(document.getElementById('comp-gross').value) || 0;
+            const net = Math.round(gross / 12 * 0.58);
+            document.getElementById('calc-net').textContent = '€' + net.toLocaleString('de-DE');
+        }
+
+        init();
+    </script>
+</body>
+</html>
