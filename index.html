@@ -3,136 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CareerCompass - People Ops Job Search Intelligence</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>CareerCompass</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --dark: #1a1a1a;
-            --cream: #f5f1ed;
             --accent: #D4853A;
-            --text: #2a2a2a;
-            --muted: #787470;
-            --border: #e0d5c7;
-            --light: #fafaf8;
+            --dark-bg: #1a1a1a;
+            --cream-bg: #F5F1E8;
+            --text-dark: #2a2a2a;
+            --text-light: #f0ede6;
+            --border: #e0ddd5;
+            --input-bg: #faf8f3;
         }
-        body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); }
-        .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--cream) 0%, #f9f6f0 100%); }
-        .auth-card { background: white; padding: 3rem; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
-        .auth-logo { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: var(--accent); margin-bottom: 2rem; text-align: center; }
-        .auth-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 0.5rem; }
-        .auth-subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; font-weight: 500; margin-bottom: 0.5rem; font-size: 0.9rem; }
-        input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text); }
-        input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(212,133,58,0.1); }
-        .btn { padding: 0.75rem 1.5rem; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.95rem; transition: all 0.2s; width: 100%; }
-        .btn:hover { background: #c0733a; }
-        .btn-secondary { background: var(--light); color: var(--text); border: 1px solid var(--border); }
-        .btn-secondary:hover { background: var(--border); }
-        .auth-divider { text-align: center; margin: 2rem 0; color: var(--muted); font-size: 0.9rem; }
-        .auth-divider::before { content: ''; display: block; height: 1px; background: var(--border); margin-bottom: 1rem; }
-        .auth-divider::after { content: ''; display: block; height: 1px; background: var(--border); margin-top: 1rem; }
-        .auth-toggle { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 1.5rem; }
-        .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 500; }
-        .error { color: #dc2626; font-size: 0.9rem; margin-top: 0.5rem; }
-        .app-container { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
-        .sidebar { background: var(--dark); padding: 2rem 1.5rem; position: fixed; width: 280px; height: 100vh; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.1); z-index: 100; display: flex; flex-direction: column; }
-        .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--accent); margin-bottom: 2rem; }
-        .user-info { padding: 1rem; background: rgba(212,133,58,0.1); border-radius: 4px; margin-bottom: 2rem; font-size: 0.85rem; }
-        .user-email { color: rgba(245,241,237,0.8); margin-bottom: 0.5rem; word-break: break-all; }
-        .user-tier { color: var(--accent); font-weight: 600; }
-        .nav-section { margin-bottom: 2rem; }
-        .nav-label { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.75rem; display: block; }
-        .nav-tabs { display: flex; flex-direction: column; gap: 0.25rem; }
-        .nav-tab { padding: 0.7rem 1rem; background: transparent; border: none; color: rgba(245,241,237,0.7); text-align: left; cursor: pointer; font-size: 0.9rem; border-left: 3px solid transparent; transition: all 0.2s; font-weight: 500; }
-        .nav-tab:hover { background: rgba(212,133,58,0.1); color: #f5f1ed; }
-        .nav-tab.active { background: rgba(212,133,58,0.15); color: var(--accent); border-left-color: var(--accent); }
-        .logout-btn { padding: 0.75rem; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; font-weight: 500; width: 100%; margin-top: auto; }
-        .main { margin-left: 280px; padding: 2rem; }
-        .header { margin-bottom: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 1.5rem; }
-        .header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .header p { color: var(--muted); font-size: 0.95rem; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--cream-bg); color: var(--text-dark); }
+        
+        /* AUTH SCREEN */
+        .auth-screen { display: none; min-height: 100vh; background: linear-gradient(135deg, #F5F1E8 0%, #FAF8F3 100%); align-items: center; justify-content: center; }
+        .auth-screen.active { display: flex; }
+        .auth-card { background: white; padding: 3.5rem; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.08); }
+        .auth-header { margin-bottom: 2.5rem; }
+        .auth-logo { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; color: var(--accent); margin-bottom: 1.5rem; letter-spacing: -0.5px; }
+        .auth-title { font-size: 1.4rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.5rem; }
+        .auth-subtitle { color: #999; font-size: 0.95rem; }
+        .form-group { margin-bottom: 1.75rem; }
+        .form-label { display: block; font-weight: 500; margin-bottom: 0.65rem; font-size: 0.9rem; color: var(--text-dark); }
+        .form-input { width: 100%; padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; background: var(--input-bg); color: var(--text-dark); transition: all 0.2s; }
+        .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(212,133,58,0.1); }
+        .btn-primary { width: 100%; padding: 1rem; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background: #c7712f; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(212,133,58,0.25); }
+        .btn-secondary { width: 100%; padding: 1rem; background: white; color: var(--text-dark); border: 1px solid var(--border); border-radius: 6px; font-weight: 500; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; margin-top: 0.75rem; }
+        .btn-secondary:hover { background: var(--input-bg); border-color: var(--accent); }
+        .divider { text-align: center; margin: 2rem 0; color: #999; font-size: 0.85rem; position: relative; }
+        .divider::before { content: ''; position: absolute; left: 0; top: 50%; width: 100%; height: 1px; background: var(--border); }
+        .divider span { position: relative; background: white; padding: 0 1rem; }
+        .toggle-auth { text-align: center; margin-top: 1.75rem; color: #999; font-size: 0.9rem; }
+        .toggle-auth a { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; }
+        .error-msg { color: #dc2626; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+        .error-msg.show { display: block; }
+        
+        /* APP SCREEN */
+        .app-screen { display: none; }
+        .app-screen.active { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+        .sidebar { background: var(--dark-bg); color: var(--text-light); padding: 2rem 1.5rem; overflow-y: auto; border-right: 1px solid rgba(212,133,58,0.15); display: flex; flex-direction: column; }
+        .sidebar-brand { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: var(--accent); margin-bottom: 2.5rem; letter-spacing: -0.5px; }
+        .user-card { background: rgba(212,133,58,0.12); padding: 1.25rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid rgba(212,133,58,0.2); }
+        .user-email { font-size: 0.85rem; color: rgba(240,237,230,0.9); word-break: break-all; }
+        .user-tier { font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-top: 0.5rem; }
+        .nav-group { margin-bottom: 2.5rem; }
+        .nav-group-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(240,237,230,0.4); font-weight: 700; margin-bottom: 0.75rem; }
+        .nav-btn { display: block; width: 100%; padding: 0.85rem 1rem; background: transparent; border: none; color: rgba(240,237,230,0.75); text-align: left; cursor: pointer; font-size: 0.9rem; border-left: 3px solid transparent; transition: all 0.2s; margin-bottom: 0.5rem; font-weight: 500; }
+        .nav-btn:hover { background: rgba(212,133,58,0.1); color: var(--text-light); }
+        .nav-btn.active { background: rgba(212,133,58,0.15); color: var(--accent); border-left-color: var(--accent); }
+        .logout-btn { margin-top: auto; padding: 1rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; }
+        .logout-btn:hover { background: #b91c1c; }
+        .main-content { padding: 2.5rem; overflow-y: auto; background: var(--cream-bg); }
+        .page-header { margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--border); }
+        .page-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; color: var(--text-dark); margin-bottom: 0.5rem; }
+        .page-subtitle { color: #999; font-size: 0.95rem; }
         .tab-content { display: none; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .section { background: white; padding: 1.5rem; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 1.5rem; }
-        .section-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        .stat-box { background: var(--light); border: 1px solid var(--border); border-radius: 4px; padding: 1.5rem; text-align: center; }
-        .stat-number { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 700; color: var(--accent); }
-        .stat-label { font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; }
-        .app-card { background: var(--light); border: 1px solid var(--border); border-radius: 4px; padding: 1.25rem; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem; }
-        .app-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(212,133,58,0.1); }
-        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } .app-container { grid-template-columns: 1fr; } .sidebar { position: fixed; transform: translateX(-100%); width: 240px; } .main { margin-left: 0; } }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 2rem; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+        .stat-number { font-family: 'Playfair Display', serif; font-size: 2.8rem; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 0.9rem; color: #999; margin-top: 0.75rem; }
+        .card { background: white; padding: 2rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem; }
+        .card-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+        .opp-item { background: var(--input-bg); padding: 1.5rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
+        .opp-item:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(212,133,58,0.1); }
+        .opp-company { font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem; }
+        .opp-role { color: #999; font-size: 0.9rem; }
+        .btn-primary-outline { display: inline-block; padding: 0.9rem 1.75rem; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary-outline:hover { background: #c7712f; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 2.5rem; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .modal-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+        @media (max-width: 768px) { .app-screen.active { grid-template-columns: 1fr; } .sidebar { width: 100%; padding: 1.5rem; } .main-content { padding: 1.5rem; } .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-    <div id="auth-view" class="auth-container">
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="auth-screen active">
         <div class="auth-card">
-            <div class="auth-logo">CareerCompass</div>
-            <div id="signin-form">
-                <div class="auth-title">Sign In</div>
+            <div class="auth-header">
+                <div class="auth-logo">CareerCompass</div>
+                <div class="auth-title" id="auth-title">Sign In</div>
                 <div class="auth-subtitle">Track your People Ops job search</div>
-                <div class="form-group"><label>Email</label><input type="email" id="signin-email" placeholder="your@email.com"></div>
-                <div class="form-group"><label>Password</label><input type="password" id="signin-password" placeholder="••••••••"></div>
-                <div id="signin-error" class="error"></div>
-                <button class="btn" onclick="signIn()">Sign In</button>
-                <div class="auth-divider">or</div>
-                <button class="btn btn-secondary" onclick="signInGoogle()">Sign in with Google</button>
-                <div class="auth-toggle">Don't have an account? <a onclick="switchToSignup()">Sign up</a></div>
             </div>
-            <div id="signup-form" style="display: none;">
-                <div class="auth-title">Create Account</div>
-                <div class="auth-subtitle">Start tracking your job search</div>
-                <div class="form-group"><label>Email</label><input type="email" id="signup-email" placeholder="your@email.com"></div>
-                <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="••••••••"></div>
-                <div id="signup-error" class="error"></div>
-                <button class="btn" onclick="signUp()">Sign Up</button>
-                <div class="auth-divider">or</div>
-                <button class="btn btn-secondary" onclick="signUpGoogle()">Sign up with Google</button>
-                <div class="auth-toggle">Already have an account? <a onclick="switchToSignin()">Sign in</a></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="app-view" style="display: none;">
-        <div class="app-container">
-            <div class="sidebar">
-                <div><div class="logo">CareerCompass</div>
-                <div class="user-info"><div class="user-email" id="user-email-display"></div><div class="user-tier" id="user-tier-display">Free</div></div>
-                <div class="nav-section"><span class="nav-label">Search</span><div class="nav-tabs"><button class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</button><button class="nav-tab" onclick="switchTab('opportunities')">Opportunities</button></div></div>
-                <div class="nav-section"><span class="nav-label">Intelligence</span><div class="nav-tabs"><button class="nav-tab" onclick="switchTab('assessment')">Company Assessment</button><button class="nav-tab" onclick="switchTab('compensation')">Compensation</button><button class="nav-tab" onclick="switchTab('interview')">Interview Strategy</button></div></div>
-                <div class="nav-section"><span class="nav-label">Germany</span><div class="nav-tabs"><button class="nav-tab" onclick="switchTab('germany')">Employment Guide</button><button class="nav-tab" onclick="switchTab('docs')">Documents</button></div></div></div>
-                <button class="logout-btn" onclick="logout()">Logout</button>
+            
+            <div id="signin-view">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="signin-email" class="form-input" placeholder="you@example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="signin-password" class="form-input" placeholder="••••••••">
+                </div>
+                <div class="error-msg" id="signin-error"></div>
+                <button class="btn-primary" onclick="handleSignIn()">Sign In</button>
+                <div class="divider"><span>or</span></div>
+                <button class="btn-secondary" onclick="handleGoogleSignIn()">Continue with Google</button>
+                <div class="toggle-auth">Don't have an account? <a onclick="switchToSignup()">Create one</a></div>
             </div>
 
-            <div class="main">
-                <div id="dashboard" class="tab-content active"><div class="header"><h1>Dashboard</h1><p>Your People Ops job search intelligence</p></div><div class="grid-2"><div class="stat-box"><div class="stat-number" id="stat-total">0</div><div class="stat-label">Opportunities</div></div><div class="stat-box"><div class="stat-number" id="stat-assessed">0</div><div class="stat-label">Assessed</div></div></div><div class="section"><div class="section-title">Active Opportunities</div><div id="recent-opps"></div></div></div>
-
-                <div id="opportunities" class="tab-content"><div class="header"><h1>Opportunities</h1><p>Track People Ops roles</p></div><div class="section"><button class="btn" onclick="openNewOppModal()">+ New Opportunity</button></div><div id="opps-list"></div></div>
-
-                <div id="assessment" class="tab-content"><div class="header"><h1>Company Assessment</h1><p>Evaluate People Ops maturity</p></div><div class="section"><div class="section-title">HRIS & Systems</div><div class="form-group"><label>Select Opportunity</label><select id="assess-opp"><option value="">Choose...</option></select></div><button class="btn" style="width: 100%;">Save Assessment</button></div></div>
-
-                <div id="compensation" class="tab-content"><div class="header"><h1>Compensation Analysis</h1><p>German salary breakdown</p></div><div class="section"><div class="form-group"><label>Annual Gross (€)</label><input type="number" id="comp-gross" placeholder="120000"></div><button class="btn" onclick="calculateNet()" style="width: 100%;">Calculate</button><div style="margin-top: 1rem; padding: 1rem; background: var(--light); border-radius: 4px;"><strong>Net:</strong> <span id="calc-net">€0</span>/month</div></div></div>
-
-                <div id="interview" class="tab-content"><div class="header"><h1>Interview Strategy</h1><p>Critical questions</p></div><div class="section"><p style="color: var(--muted);">Interview strategy content.</p></div></div>
-
-                <div id="germany" class="tab-content"><div class="header"><h1>Germany Employment Guide</h1><p>Know your rights</p></div><div class="section"><p style="color: var(--muted);">Employment guide content.</p></div></div>
-
-                <div id="docs" class="tab-content"><div class="header"><h1>Documents & SCHUFA</h1><p>Track credentials</p></div><div class="section"><div class="form-group"><label>SCHUFA Score</label><input type="number" id="doc-schufa" placeholder="520"></div><button class="btn" style="width: 100%;">Save</button></div></div>
+            <div id="signup-view" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="signup-email" class="form-input" placeholder="you@example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="signup-password" class="form-input" placeholder="••••••••">
+                </div>
+                <div class="error-msg" id="signup-error"></div>
+                <button class="btn-primary" onclick="handleSignUp()">Create Account</button>
+                <div class="divider"><span>or</span></div>
+                <button class="btn-secondary" onclick="handleGoogleSignUp()">Sign up with Google</button>
+                <div class="toggle-auth">Already have an account? <a onclick="switchToSignin()">Sign in</a></div>
             </div>
         </div>
     </div>
 
-    <div id="oppModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center;">
-        <div style="background: white; border-radius: 4px; padding: 2rem; max-width: 500px; width: 90%;"><h2 style="font-family: 'Playfair Display', serif; margin-bottom: 1.5rem;">New Opportunity</h2>
-            <div class="form-group"><label>Company</label><input type="text" id="opp-company" placeholder="Company name"></div>
-            <div class="form-group"><label>Role</label><input type="text" id="opp-role" placeholder="e.g., Head of People"></div>
-            <div class="form-group"><label>Status</label><select id="opp-status"><option value="saved">Saved</option><option value="applied">Applied</option><option value="interview">Interview</option></select></div>
-            <button class="btn" onclick="addOpportunity()" style="width: 100%; margin-bottom: 0.5rem;">Add</button>
-            <button class="btn btn-secondary" onclick="closeModal()" style="width: 100%;">Cancel</button>
+    <!-- APP SCREEN -->
+    <div id="app-screen" class="app-screen">
+        <div class="sidebar">
+            <div class="sidebar-brand">CareerCompass</div>
+            <div class="user-card">
+                <div class="user-email" id="user-email-display"></div>
+                <div class="user-tier">Free Plan</div>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-label">Dashboard</div>
+                <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
+                <button class="nav-btn" onclick="showTab('opportunities')">Opportunities</button>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-label">Intelligence</div>
+                <button class="nav-btn" onclick="showTab('assessment')">Company Assessment</button>
+                <button class="nav-btn" onclick="showTab('compensation')">Compensation</button>
+                <button class="nav-btn" onclick="showTab('interview')">Interview Strategy</button>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-label">Germany</div>
+                <button class="nav-btn" onclick="showTab('germany')">Employment Guide</button>
+                <button class="nav-btn" onclick="showTab('docs')">Documents</button>
+            </div>
+
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+
+        <div class="main-content">
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="tab-content active">
+                <div class="page-header">
+                    <div class="page-title">Dashboard</div>
+                    <div class="page-subtitle">Your People Ops job search overview</div>
+                </div>
+                <div class="grid-2">
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-total">0</div>
+                        <div class="stat-label">Opportunities Tracked</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-assessed">0</div>
+                        <div class="stat-label">Assessed</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Recent Activity</div>
+                    <div id="recent-opps"></div>
+                </div>
+            </div>
+
+            <!-- OPPORTUNITIES -->
+            <div id="opportunities" class="tab-content">
+                <div class="page-header">
+                    <div class="page-title">Opportunities</div>
+                    <div class="page-subtitle">Track People Ops roles</div>
+                </div>
+                <button class="btn-primary-outline" onclick="openAddModal()">+ Add Opportunity</button>
+                <div class="card" style="margin-top: 2rem;">
+                    <div id="opps-list"></div>
+                </div>
+            </div>
+
+            <!-- ASSESSMENT -->
+            <div id="assessment" class="tab-content">
+                <div class="page-header">
+                    <div class="page-title">Company Assessment</div>
+                    <div class="page-subtitle">Evaluate People Ops maturity</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">HRIS & Systems</div>
+                    <div class="form-group">
+                        <label class="form-label">Select Opportunity</label>
+                        <select id="assess-opp" class="form-input">
+                            <option value="">Choose...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">HRIS System</label>
+                        <input type="text" class="form-input" placeholder="e.g., Personio">
+                    </div>
+                    <button class="btn-primary-outline">Save Assessment</button>
+                </div>
+            </div>
+
+            <!-- COMPENSATION -->
+            <div id="compensation" class="tab-content">
+                <div class="page-header">
+                    <div class="page-title">Compensation Analysis</div>
+                    <div class="page-subtitle">German salary breakdown</div>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label class="form-label">Annual Gross Salary (€)</label>
+                        <input type="number" id="comp-gross" class="form-input" placeholder="120000">
+                    </div>
+                    <button class="btn-primary-outline" onclick="calculateNet()">Calculate Net</button>
+                    <div style="margin-top: 1.5rem; padding: 1.25rem; background: var(--input-bg); border-radius: 6px;">
+                        <div style="font-size: 0.85rem; color: #999; margin-bottom: 0.5rem;">Monthly Net</div>
+                        <div style="font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: var(--accent);" id="calc-net">€0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INTERVIEW -->
+            <div id="interview" class="tab-content">
+                <div class="page-header">
+                    <div class="page-title">Interview Strategy</div>
+                    <div class="page-subtitle">Critical questions to ask</div>
+                </div>
+                <div class="card">
+                    <p style="color: #999;">Interview strategy content coming soon.</p>
+                </div>
+            </div>
+
+            <!-- GERMANY -->
+            <div id="germany" class="tab-content">
+                <div class="page-header">
+                    <div class="page-title">Germany Employment Guide</div>
+                    <div class="page-subtitle">Know your rights</div>
+                </div>
+                <div class="card">
+                    <p style="color: #999;">Employment guide content coming soon.</p>
+                </div>
+            </div>
+
+            <!-- DOCS -->
+            <div id="docs" class="tab-content">
+                <div class="page-header">
+                    <div class="page-title">Documents & SCHUFA</div>
+                    <div class="page-subtitle">Track your credentials</div>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label class="form-label">SCHUFA Score</label>
+                        <input type="number" class="form-input" placeholder="520">
+                    </div>
+                    <button class="btn-primary-outline">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="add-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Add Opportunity</div>
+            <div class="form-group">
+                <label class="form-label">Company</label>
+                <input type="text" id="modal-company" class="form-input" placeholder="Company name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Role</label>
+                <input type="text" id="modal-role" class="form-input" placeholder="e.g., Head of People">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select id="modal-status" class="form-input">
+                    <option value="saved">Saved</option>
+                    <option value="applied">Applied</option>
+                    <option value="interview">Interview</option>
+                </select>
+            </div>
+            <button class="btn-primary" onclick="addOpportunity()" style="width: 100%; margin-bottom: 0.75rem;">Add</button>
+            <button class="btn-secondary" onclick="closeModal()" style="width: 100%;">Cancel</button>
         </div>
     </div>
 
@@ -148,137 +311,126 @@
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 currentUser = user;
-                showAppView();
-                loadUserData();
+                showApp();
+                loadData();
             } else {
-                showAuthView();
+                showAuth();
             }
             supabase.auth.onAuthStateChange((event, session) => {
                 if (session) {
                     currentUser = session.user;
-                    showAppView();
-                    loadUserData();
+                    showApp();
+                    loadData();
                 } else {
                     currentUser = null;
-                    showAuthView();
+                    showAuth();
                 }
             });
         }
 
-        function showAuthView() {
-            document.getElementById('auth-view').style.display = 'flex';
-            document.getElementById('app-view').style.display = 'none';
+        function showAuth() {
+            document.getElementById('auth-screen').classList.add('active');
+            document.getElementById('app-screen').classList.remove('active');
         }
 
-        function showAppView() {
-            document.getElementById('auth-view').style.display = 'none';
-            document.getElementById('app-view').style.display = 'block';
+        function showApp() {
+            document.getElementById('auth-screen').classList.remove('active');
+            document.getElementById('app-screen').classList.add('active');
             document.getElementById('user-email-display').textContent = currentUser.email;
         }
 
         function switchToSignup() {
-            document.getElementById('signin-form').style.display = 'none';
-            document.getElementById('signup-form').style.display = 'block';
+            document.getElementById('signin-view').style.display = 'none';
+            document.getElementById('signup-view').style.display = 'block';
+            document.getElementById('auth-title').textContent = 'Create Account';
         }
 
         function switchToSignin() {
-            document.getElementById('signin-form').style.display = 'block';
-            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('signin-view').style.display = 'block';
+            document.getElementById('signup-view').style.display = 'none';
+            document.getElementById('auth-title').textContent = 'Sign In';
         }
 
-        async function signIn() {
+        async function handleSignIn() {
             const email = document.getElementById('signin-email').value;
             const password = document.getElementById('signin-password').value;
+            const err = document.getElementById('signin-error');
             try {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
-            } catch (err) {
-                document.getElementById('signin-error').textContent = err.message;
+            } catch (e) {
+                err.textContent = e.message;
+                err.classList.add('show');
             }
         }
 
-        async function signUp() {
+        async function handleSignUp() {
             const email = document.getElementById('signup-email').value;
             const password = document.getElementById('signup-password').value;
+            const err = document.getElementById('signup-error');
             try {
                 const { error } = await supabase.auth.signUp({ email, password });
                 if (error) throw error;
-                document.getElementById('signup-error').textContent = 'Check email to confirm';
-            } catch (err) {
-                document.getElementById('signup-error').textContent = err.message;
+                err.textContent = 'Check your email to confirm';
+                err.classList.add('show');
+            } catch (e) {
+                err.textContent = e.message;
+                err.classList.add('show');
             }
         }
 
-        async function signInGoogle() {
+        async function handleGoogleSignIn() {
             await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
         }
 
-        async function signUpGoogle() {
+        async function handleGoogleSignUp() {
             await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
         }
 
-        async function logout() {
+        async function handleLogout() {
             await supabase.auth.signOut();
         }
 
-        async function loadUserData() {
-            const { data: opps } = await supabase.from('opportunities').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-            renderOpps(opps || []);
-            updateDashboard(opps || []);
-        }
-
-        function switchTab(tabId) {
+        function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
         }
 
-        function openNewOppModal() {
-            document.getElementById('oppModal').style.display = 'flex';
+        function openAddModal() {
+            document.getElementById('add-modal').classList.add('active');
         }
 
         function closeModal() {
-            document.getElementById('oppModal').style.display = 'none';
+            document.getElementById('add-modal').classList.remove('active');
         }
 
         async function addOpportunity() {
-            const company = document.getElementById('opp-company').value;
-            const role = document.getElementById('opp-role').value;
+            const company = document.getElementById('modal-company').value;
+            const role = document.getElementById('modal-role').value;
             if (!company || !role) { alert('Fill all fields'); return; }
             const { error } = await supabase.from('opportunities').insert([{
                 user_id: currentUser.id,
                 company,
                 role,
-                status: document.getElementById('opp-status').value,
+                status: document.getElementById('modal-status').value,
                 created_at: new Date().toISOString()
             }]);
             if (!error) {
-                document.getElementById('opp-company').value = '';
-                document.getElementById('opp-role').value = '';
                 closeModal();
-                loadUserData();
+                document.getElementById('modal-company').value = '';
+                document.getElementById('modal-role').value = '';
+                loadData();
             }
         }
 
-        function renderOpps(opps) {
-            const html = opps.map(o => `<div class="app-card"><div style="font-weight: 600;">${o.company}</div><div style="font-size: 0.9rem; color: var(--muted);">${o.role}</div></div>`).join('');
-            document.getElementById('opps-list').innerHTML = html || '<p style="color: var(--muted);">No opportunities yet</p>';
+        async function loadData() {
+            const { data: opps } = await supabase.from('opportunities').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+            document.getElementById('stat-total').textContent = opps?.length || 0;
+            const html = opps?.map(o => `<div class="opp-item"><div class="opp-company">${o.company}</div><div class="opp-role">${o.role}</div></div>`).join('') || 'No opportunities yet';
+            document.getElementById('opps-list').innerHTML = html;
+            document.getElementById('recent-opps').innerHTML = opps?.slice(0, 3).map(o => `<div style="margin-bottom: 1rem;"><strong>${o.company}</strong><br><small style="color: #999;">${o.role}</small></div>`).join('') || 'No opportunities yet';
         }
 
-        function updateDashboard(opps) {
-            document.getElementById('stat-total').textContent = opps.length;
-            const recent = opps.slice(0, 3).map(o => `<div style="margin-bottom: 1rem;"><strong>${o.company}</strong><br><small style="color: var(--muted);">${o.role}</small></div>`).join('');
-            document.getElementById('recent-opps').innerHTML = recent || '<p style="color: var(--muted);">No opportunities yet</p>';
-        }
-
-        function calculateNet() {
-            const gross = parseInt(document.getElementById('comp-gross').value) || 0;
-            const net = Math.round(gross / 12 * 0.58);
-            document.getElementById('calc-net').textContent = '€' + net.toLocaleString('de-DE');
-        }
-
-        init();
-    </script>
-</body>
-</html>
+        function calculate
