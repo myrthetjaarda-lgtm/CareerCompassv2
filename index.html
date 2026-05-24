@@ -10,7 +10,6 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root { --accent: #D4853A; --dark: #1a1a1a; --cream: #F5F1E8; --text: #2a2a2a; --light: #f0ede6; --border: #e0ddd5; }
         body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); }
-        .container { max-width: 1400px; margin: 0 auto; }
         .landing { display: none; }
         .landing.show { display: block; }
         .landing-nav { padding: 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
@@ -38,10 +37,12 @@
         input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(212,133,58,0.1); }
         .app { display: none; }
         .app.show { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
-        .sidebar { background: var(--dark); color: var(--light); padding: 2rem; overflow-y: auto; }
+        .sidebar { background: var(--dark); color: var(--light); padding: 2rem; overflow-y: auto; display: flex; flex-direction: column; }
         .sidebar-brand { font-family: 'Playfair Display'; font-size: 1.8rem; color: var(--accent); margin-bottom: 2rem; }
         .user-info { background: rgba(212,133,58,0.1); padding: 1.2rem; border-radius: 8px; margin-bottom: 2rem; font-size: 0.9rem; }
         .tier { color: var(--accent); font-weight: 600; margin-top: 0.5rem; }
+        .nav-group { margin-bottom: 2rem; }
+        .nav-label { font-size: 0.75rem; text-transform: uppercase; color: rgba(240,237,230,0.4); margin-bottom: 0.75rem; font-weight: 700; }
         .nav-btn { display: block; width: 100%; padding: 0.8rem; background: transparent; border: none; color: rgba(240,237,230,0.8); text-align: left; cursor: pointer; margin-bottom: 0.5rem; border-left: 3px solid transparent; }
         .nav-btn.active { background: rgba(212,133,58,0.15); color: var(--accent); border-left-color: var(--accent); }
         .logout { margin-top: auto; width: 100%; padding: 1rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
@@ -58,8 +59,7 @@
         .card-box h3 { font-family: 'Playfair Display'; font-size: 1.2rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
         .form-group { margin-bottom: 1.5rem; }
         .form-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; }
-        .form-group input { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; }
-        .opps-list { margin: 1rem 0; }
+        .form-group input, .form-group select { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; font-family: 'DM Sans'; }
         .opp { background: #faf8f3; padding: 1.2rem; border-radius: 6px; margin-bottom: 0.8rem; border: 1px solid var(--border); }
         .opp-name { font-weight: 600; margin-bottom: 0.3rem; }
         .opp-role { color: #999; font-size: 0.9rem; }
@@ -71,292 +71,4 @@
     </style>
 </head>
 <body>
-    <div id="landing" class="landing show">
-        <div class="landing-nav">
-            <div class="logo">CareerCompass</div>
-            <button class="btn" onclick="goAuth()">Sign In</button>
-        </div>
-        <div class="hero">
-            <h1>Track Your People Ops Job Search</h1>
-            <p>Compare offers, assess company maturity, and nail the role. Built for HR professionals.</p>
-            <button class="btn" onclick="goAuth()" style="padding: 1.2rem 2.5rem; font-size: 1rem;">Get Started Free</button>
-        </div>
-        <div class="pricing">
-            <h2>Pricing</h2>
-            <div class="cards">
-                <div class="card">
-                    <h3>Free</h3>
-                    <div class="price">€0</div>
-                    <div class="period">Forever</div>
-                    <ul class="features">
-                        <li>✓ Track opportunities</li>
-                        <li>✓ Dashboard</li>
-                        <li>✓ Basic list</li>
-                    </ul>
-                    <button class="btn" style="width: 100%; margin-top: 2rem;" onclick="goAuth()">Start</button>
-                </div>
-                <div class="card featured">
-                    <h3>Pro</h3>
-                    <div class="price">€9</div>
-                    <div class="period">/month</div>
-                    <ul class="features">
-                        <li>✓ Everything Free</li>
-                        <li>✓ Company assessment</li>
-                        <li>✓ Interview strategy</li>
-                        <li>✓ HRIS analysis</li>
-                    </ul>
-                    <button class="btn" style="width: 100%; margin-top: 2rem;" onclick="goAuth()">Upgrade</button>
-                </div>
-                <div class="card">
-                    <h3>Coach</h3>
-                    <div class="price">€29</div>
-                    <div class="period">/month</div>
-                    <ul class="features">
-                        <li>✓ Everything Pro</li>
-                        <li>✓ Compensation analysis</li>
-                        <li>✓ Tax calculator</li>
-                        <li>✓ Priority support</li>
-                    </ul>
-                    <button class="btn" style="width: 100%; margin-top: 2rem;" onclick="goAuth()">Upgrade</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="auth" class="auth">
-        <div class="auth-card">
-            <h2>CareerCompass</h2>
-            <p>Sign in or create account</p>
-            <input type="email" id="email" placeholder="Email">
-            <input type="password" id="pwd" placeholder="Password">
-            <button class="btn" style="width: 100%; margin-bottom: 1rem;" onclick="signin()">Sign In</button>
-            <button class="btn" style="width: 100%; background: white; color: var(--text); border: 1px solid var(--border);" onclick="signup()">Create Account</button>
-            <button class="btn" style="width: 100%; margin-top: 1rem; background: white; color: var(--text); border: 1px solid var(--border);" onclick="goLanding()">Back</button>
-        </div>
-    </div>
-
-    <div id="app" class="app">
-        <div class="sidebar">
-            <div class="sidebar-brand">CareerCompass</div>
-            <div class="user-info">
-                <div id="email-display"></div>
-                <div class="tier" id="tier-display">Free</div>
-            </div>
-            <div>
-                <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
-                <button class="nav-btn" onclick="showTab('opps')">Opportunities</button>
-                <button class="nav-btn" onclick="showTab('assessment')">Assessment</button>
-                <button class="nav-btn" onclick="showTab('compensation')">Compensation</button>
-                <button class="nav-btn" onclick="showTab('profile')">Profile</button>
-            </div>
-            <button class="logout" onclick="logout()">Logout</button>
-        </div>
-        <div class="main">
-            <div id="dashboard" class="tab show">
-                <div class="header"><h1>Dashboard</h1></div>
-                <div class="stat-grid">
-                    <div class="stat"><div class="stat-num" id="total-count">0</div><div class="stat-label">Opportunities</div></div>
-                    <div class="stat"><div class="stat-num" id="assessed-count">0</div><div class="stat-label">Assessed</div></div>
-                </div>
-                <div class="card-box">
-                    <h3>Recent</h3>
-                    <div id="recent-list"></div>
-                </div>
-            </div>
-
-            <div id="opps" class="tab">
-                <div class="header"><h1>Opportunities</h1></div>
-                <button class="btn" onclick="openAddModal()">+ Add</button>
-                <div class="card-box" style="margin-top: 2rem;">
-                    <div id="opps-list" class="opps-list"></div>
-                </div>
-            </div>
-
-            <div id="assessment" class="tab">
-                <div class="header"><h1>Company Assessment</h1></div>
-                <div class="card-box">
-                    <h3>HRIS & Systems</h3>
-                    <div class="form-group">
-                        <label>HRIS System</label>
-                        <input type="text" placeholder="e.g., Personio">
-                    </div>
-                    <button class="btn">Save</button>
-                </div>
-            </div>
-
-            <div id="compensation" class="tab">
-                <div class="header"><h1>Compensation</h1></div>
-                <div class="card-box">
-                    <div class="form-group">
-                        <label>Annual Gross (€)</label>
-                        <input type="number" id="gross" placeholder="120000">
-                    </div>
-                    <button class="btn" onclick="calcNet()">Calculate</button>
-                    <div style="margin-top: 2rem; padding: 1.5rem; background: #faf8f3; border-radius: 6px;">
-                        <div style="color: #999; font-size: 0.9rem;">Monthly Net</div>
-                        <div style="font-family: 'Playfair Display'; font-size: 2rem; color: var(--accent); font-weight: 700;" id="net-result">€0</div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="profile" class="tab">
-                <div class="header"><h1>Profile</h1></div>
-                <div class="card-box">
-                    <h3>Your Information</h3>
-                    <div class="form-group">
-                        <label>Name</label>
-                        <input type="text" id="profile-name" placeholder="Your name">
-                    </div>
-                    <div class="form-group">
-                        <label>Title</label>
-                        <input type="text" id="profile-title" placeholder="e.g., Head of People">
-                    </div>
-                    <div class="form-group">
-                        <label>Years in People Ops</label>
-                        <input type="number" id="profile-years" placeholder="10">
-                    </div>
-                    <button class="btn" onclick="saveProfile()">Save Profile</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="add-modal" class="modal">
-        <div class="modal-content">
-            <h3>Add Opportunity</h3>
-            <input type="text" id="modal-company" placeholder="Company">
-            <input type="text" id="modal-role" placeholder="Role">
-            <select id="modal-status" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 1.5rem;">
-                <option value="saved">Saved</option>
-                <option value="applied">Applied</option>
-                <option value="interview">Interview</option>
-            </select>
-            <button class="btn" style="width: 100%; margin-bottom: 0.5rem;" onclick="addOpp()">Add</button>
-            <button class="btn" style="width: 100%; background: white; color: var(--text); border: 1px solid var(--border);" onclick="closeModal()">Cancel</button>
-        </div>
-    </div>
-
-    <script>
-        const SUPABASE_URL = 'https://dxwnleokbmvbcgqnfulp.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_BvoNQ2rHQiGxid8Yy-TfsQ_KDTylpGF';
-        const { createClient } = window.supabase;
-        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-        let user = null;
-
-        async function init() {
-            const { data: { user: u } } = await supabase.auth.getUser();
-            user = u;
-            if (user) {
-                showApp();
-                loadData();
-            } else {
-                showLanding();
-            }
-            supabase.auth.onAuthStateChange((ev, s) => {
-                user = s?.user;
-                if (user) { showApp(); loadData(); }
-                else { showLanding(); }
-            });
-        }
-
-        function showLanding() {
-            document.getElementById('landing').classList.add('show');
-            document.getElementById('auth').classList.remove('show');
-            document.getElementById('app').classList.remove('show');
-        }
-
-        function goAuth() {
-            document.getElementById('landing').classList.remove('show');
-            document.getElementById('auth').classList.add('show');
-            document.getElementById('app').classList.remove('show');
-        }
-
-        function goLanding() {
-            showLanding();
-        }
-
-        function showApp() {
-            document.getElementById('landing').classList.remove('show');
-            document.getElementById('auth').classList.remove('show');
-            document.getElementById('app').classList.add('show');
-            document.getElementById('email-display').textContent = user.email;
-        }
-
-        async function signin() {
-            const email = document.getElementById('email').value;
-            const pwd = document.getElementById('pwd').value;
-            if (!email || !pwd) { alert('Fill all fields'); return; }
-            const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
-            if (error) { alert(error.message); return; }
-        }
-
-        async function signup() {
-            const email = document.getElementById('email').value;
-            const pwd = document.getElementById('pwd').value;
-            if (!email || !pwd) { alert('Fill all fields'); return; }
-            const { error } = await supabase.auth.signUp({ email, password: pwd });
-            if (error) { alert(error.message); return; }
-            alert('Check email to confirm');
-        }
-
-        async function logout() {
-            await supabase.auth.signOut();
-        }
-
-        function showTab(tabId) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('show'));
-            document.getElementById(tabId).classList.add('show');
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-        }
-
-        function openAddModal() {
-            document.getElementById('add-modal').classList.add('show');
-        }
-
-        function closeModal() {
-            document.getElementById('add-modal').classList.remove('show');
-        }
-
-        async function addOpp() {
-            const company = document.getElementById('modal-company').value;
-            const role = document.getElementById('modal-role').value;
-            const status = document.getElementById('modal-status').value;
-            if (!company || !role) { alert('Fill all'); return; }
-            const { error } = await supabase.from('opportunities').insert([{ user_id: user.id, company, role, status, created_at: new Date().toISOString() }]);
-            if (!error) {
-                closeModal();
-                document.getElementById('modal-company').value = '';
-                document.getElementById('modal-role').value = '';
-                loadData();
-            }
-        }
-
-        async function loadData() {
-            const { data: opps } = await supabase.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-            document.getElementById('total-count').textContent = opps?.length || 0;
-            const html = opps?.map(o => `<div class="opp"><div class="opp-name">${o.company}</div><div class="opp-role">${o.role}</div></div>`).join('') || 'None yet';
-            document.getElementById('opps-list').innerHTML = html;
-            document.getElementById('recent-list').innerHTML = opps?.slice(0, 3).map(o => `<div style="margin-bottom: 1rem;"><strong>${o.company}</strong><br><small style="color: #999;">${o.role}</small></div>`).join('') || 'No data';
-        }
-
-        function calcNet() {
-            const gross = parseInt(document.getElementById('gross').value) || 0;
-            const net = Math.round(gross / 12 * 0.58);
-            document.getElementById('net-result').textContent = '€' + net.toLocaleString();
-        }
-
-        function saveProfile() {
-            const name = document.getElementById('profile-name').value;
-            const title = document.getElementById('profile-title').value;
-            const years = document.getElementById('profile-years').value;
-            if (name && title) {
-                alert('Profile saved');
-                localStorage.setItem('profile-' + user.id, JSON.stringify({ name, title, years }));
-            }
-        }
-
-        init();
-    </script>
-</body>
-</html>
+    <div id="landing"
