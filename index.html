@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CareerCompass</title>
+    <title>CareerCompass - Complete Job Search Intelligence</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root { --accent: #D4853A; --dark: #1a1a1a; --cream: #F5F1E8; --text: #2a2a2a; --light: #f0ede6; --border: #e0ddd5; }
         body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); }
+        
         .landing { display: none; } .landing.show { display: block; }
         .landing-nav { padding: 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         .logo { font-family: 'Playfair Display'; font-size: 1.8rem; font-weight: 700; color: var(--accent); }
@@ -27,6 +28,7 @@
         .period { color: #999; font-size: 0.9rem; margin-bottom: 2rem; }
         .features { text-align: left; margin: 2rem 0; font-size: 0.95rem; list-style: none; }
         .features li { margin: 0.6rem 0; }
+        
         .auth { display: none; min-height: 100vh; background: linear-gradient(135deg, var(--cream), #faf8f3); align-items: center; justify-content: center; }
         .auth.show { display: flex; }
         .auth-card { background: white; padding: 3rem; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); }
@@ -36,38 +38,55 @@
         .error { color: #dc2626; font-size: 0.85rem; margin: -1rem 0 1rem 0; }
         .toggle-auth { text-align: center; margin-top: 1rem; color: #999; font-size: 0.9rem; }
         .toggle-auth a { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; }
+        
         .app { display: none; }
-        .app.show { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
-        .sidebar { background: var(--dark); color: var(--light); padding: 2rem; overflow-y: auto; display: flex; flex-direction: column; }
-        .sidebar-brand { font-family: 'Playfair Display'; font-size: 1.8rem; color: var(--accent); margin-bottom: 2rem; }
-        .user-card { background: rgba(212,133,58,0.1); padding: 1.2rem; border-radius: 8px; margin-bottom: 2rem; font-size: 0.9rem; }
-        .user-email { word-break: break-all; }
-        .user-tier { color: var(--accent); font-weight: 600; margin-top: 0.5rem; font-size: 0.8rem; }
-        .nav-section { margin-bottom: 2rem; }
-        .nav-label { font-size: 0.75rem; text-transform: uppercase; color: rgba(240,237,230,0.4); margin-bottom: 0.75rem; font-weight: 700; }
-        .nav-btn { display: block; width: 100%; padding: 0.8rem; background: transparent; border: none; color: rgba(240,237,230,0.8); text-align: left; cursor: pointer; margin-bottom: 0.5rem; border-left: 3px solid transparent; }
+        .app.show { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+        .sidebar { background: var(--dark); color: var(--light); padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; font-size: 0.9rem; }
+        .sidebar-brand { font-family: 'Playfair Display'; font-size: 1.6rem; color: var(--accent); margin-bottom: 1.5rem; }
+        .user-card { background: rgba(212,133,58,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.85rem; }
+        .nav-section { margin-bottom: 1.5rem; }
+        .nav-label { font-size: 0.7rem; text-transform: uppercase; color: rgba(240,237,230,0.4); margin-bottom: 0.5rem; font-weight: 700; }
+        .nav-btn { display: block; width: 100%; padding: 0.6rem; background: transparent; border: none; color: rgba(240,237,230,0.8); text-align: left; cursor: pointer; margin-bottom: 0.3rem; border-left: 3px solid transparent; font-size: 0.85rem; }
         .nav-btn.active { background: rgba(212,133,58,0.15); color: var(--accent); border-left-color: var(--accent); }
-        .logout-btn { margin-top: auto; width: 100%; padding: 1rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-        .main { padding: 2.5rem; overflow-y: auto; background: var(--cream); }
+        .logout-btn { margin-top: auto; width: 100%; padding: 0.8rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+        
+        .main { padding: 2rem; overflow-y: auto; background: var(--cream); }
         .tab { display: none; }
         .tab.show { display: block; }
-        .page-header { margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--border); }
-        .page-title { font-family: 'Playfair Display'; font-size: 2.2rem; margin-bottom: 0.5rem; }
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
-        .stat-card { background: white; padding: 2rem; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
-        .stat-number { font-family: 'Playfair Display'; font-size: 3rem; color: var(--accent); }
-        .card-box { background: white; padding: 2rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem; }
-        .card-title { font-family: 'Playfair Display'; font-size: 1.2rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; }
-        .form-group input, .form-group select { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; font-family: 'DM Sans'; }
-        .opp-item { background: #faf8f3; padding: 1.2rem; border-radius: 6px; margin-bottom: 0.8rem; border: 1px solid var(--border); }
-        .opp-company { font-weight: 600; margin-bottom: 0.3rem; }
+        .page-header { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+        .page-title { font-family: 'Playfair Display'; font-size: 1.8rem; margin-bottom: 0.3rem; }
+        .page-subtitle { color: #999; font-size: 0.9rem; }
+        
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+        .stat-number { font-family: 'Playfair Display'; font-size: 2.5rem; color: var(--accent); }
+        .stat-label { color: #999; margin-top: 0.3rem; font-size: 0.85rem; }
+        
+        .card-box { background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .card-title { font-family: 'Playfair Display'; font-size: 1.1rem; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 0.4rem; font-size: 0.9rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: 'DM Sans'; font-size: 0.9rem; }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        
+        .opp-item { background: #faf8f3; padding: 1rem; border-radius: 6px; margin-bottom: 0.75rem; border: 1px solid var(--border); }
+        .opp-company { font-weight: 600; margin-bottom: 0.2rem; }
+        .opp-role { color: #999; font-size: 0.85rem; }
+        
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
         .modal.show { display: flex; }
-        .modal-content { background: white; padding: 2.5rem; border-radius: 12px; width: 90%; max-width: 500px; }
-        .modal-title { font-family: 'Playfair Display'; font-size: 1.5rem; margin-bottom: 1.5rem; }
-        @media (max-width: 768px) { .cards { grid-template-columns: 1fr; } .app.show { grid-template-columns: 1fr; } .stat-grid { grid-template-columns: 1fr; } }
+        .modal-content { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .modal-title { font-family: 'Playfair Display'; font-size: 1.3rem; margin-bottom: 1.2rem; }
+        
+        .table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .table th, .table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .table th { background: #faf8f3; font-weight: 600; font-size: 0.9rem; }
+        
+        @media (max-width: 768px) { 
+            .cards { grid-template-columns: 1fr; } 
+            .app.show { grid-template-columns: 1fr; } 
+            .stat-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -77,8 +96,8 @@
             <button class="btn" onclick="goAuth('signin')">Sign In</button>
         </div>
         <div class="hero">
-            <h1>Track Your People Ops Job Search</h1>
-            <p>Compare offers, assess company maturity, and nail the role.</p>
+            <h1>Complete Job Search Intelligence</h1>
+            <p>Track opportunities, assess companies, prepare interviews, understand contracts. All-in-one for People Ops professionals.</p>
             <button class="btn" onclick="goAuth('signup')" style="padding: 1.2rem 2.5rem; font-size: 1rem;">Get Started Free</button>
         </div>
         <div class="pricing">
@@ -89,22 +108,23 @@
                     <div class="price">€0</div>
                     <div class="period">Forever</div>
                     <ul class="features">
-                        <li>✓ Track opportunities</li>
+                        <li>✓ Track 20 opportunities</li>
                         <li>✓ Dashboard</li>
-                        <li>✓ Basic list</li>
+                        <li>✓ Basic tools</li>
                     </ul>
-                    <button class="btn" style="width: 100%; margin-top: 2rem;" onclick="goAuth('signup')">Start</button>
+                    <button class="btn" style="width: 100%; margin-top: 1.5rem;" onclick="goAuth('signup')">Start</button>
                 </div>
                 <div class="card featured">
                     <h3>Pro</h3>
                     <div class="price">€9</div>
                     <div class="period">/month</div>
                     <ul class="features">
-                        <li>✓ Everything Free</li>
+                        <li>✓ Unlimited opportunities</li>
                         <li>✓ Company assessment</li>
-                        <li>✓ Interview strategy</li>
+                        <li>✓ Interview prep</li>
+                        <li>✓ Full calculators</li>
                     </ul>
-                    <button class="btn" style="width: 100%; margin-top: 2rem;" onclick="goAuth('signup')">Upgrade</button>
+                    <button class="btn" style="width: 100%; margin-top: 1.5rem;" onclick="goAuth('signup')">Upgrade</button>
                 </div>
                 <div class="card">
                     <h3>Coach</h3>
@@ -112,10 +132,11 @@
                     <div class="period">/month</div>
                     <ul class="features">
                         <li>✓ Everything Pro</li>
-                        <li>✓ Compensation analysis</li>
+                        <li>✓ Contract analysis</li>
+                        <li>✓ Germany guide</li>
                         <li>✓ Priority support</li>
                     </ul>
-                    <button class="btn" style="width: 100%; margin-top: 2rem;" onclick="goAuth('signup')">Upgrade</button>
+                    <button class="btn" style="width: 100%; margin-top: 1.5rem;" onclick="goAuth('signup')">Upgrade</button>
                 </div>
             </div>
         </div>
@@ -129,7 +150,6 @@
                 <p style="color: #999; margin-bottom: 2rem;">Access your tracker</p>
                 <input type="email" id="signin-email" class="form-input" placeholder="Email">
                 <input type="password" id="signin-pwd" class="form-input" placeholder="Password">
-                <div id="signin-error" class="error"></div>
                 <button class="btn" style="width: 100%; margin-bottom: 1rem;" onclick="handleSignIn()">Sign In</button>
                 <div class="toggle-auth">No account? <a onclick="switchForm('signup')">Sign up</a></div>
             </div>
@@ -139,7 +159,6 @@
                 <input type="email" id="signup-email" class="form-input" placeholder="Email">
                 <input type="password" id="signup-pwd" class="form-input" placeholder="Password">
                 <input type="password" id="signup-pwd2" class="form-input" placeholder="Confirm">
-                <div id="signup-error" class="error"></div>
                 <button class="btn" style="width: 100%; margin-bottom: 1rem;" onclick="handleSignUp()">Create</button>
                 <div class="toggle-auth">Have account? <a onclick="switchForm('signin')">Sign in</a></div>
             </div>
@@ -150,19 +169,37 @@
         <div class="sidebar">
             <div class="sidebar-brand">CareerCompass</div>
             <div class="user-card">
-                <div class="user-email" id="user-email"></div>
-                <div class="user-tier">Free</div>
+                <div id="user-email" style="word-break: break-all;"></div>
+                <div style="color: var(--accent); font-weight: 600; margin-top: 0.3rem; font-size: 0.75rem;">Free</div>
             </div>
+            
             <div class="nav-section">
                 <div class="nav-label">Dashboard</div>
                 <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
                 <button class="nav-btn" onclick="showTab('opportunities')">Opportunities</button>
             </div>
+            
+            <div class="nav-section">
+                <div class="nav-label">Assessment</div>
+                <button class="nav-btn" onclick="showTab('company')">Company</button>
+                <button class="nav-btn" onclick="showTab('interview')">Interview</button>
+                <button class="nav-btn" onclick="showTab('contract')">Contract</button>
+            </div>
+            
             <div class="nav-section">
                 <div class="nav-label">Tools</div>
                 <button class="nav-btn" onclick="showTab('compensation')">Compensation</button>
-                <button class="nav-btn" onclick="showTab('profile')">Profile</button>
+                <button class="nav-btn" onclick="showTab('commute')">Commute</button>
+                <button class="nav-btn" onclick="showTab('germany')">Germany</button>
+                <button class="nav-btn" onclick="showTab('documents')">Documents</button>
             </div>
+            
+            <div class="nav-section">
+                <div class="nav-label">Personal</div>
+                <button class="nav-btn" onclick="showTab('profile')">Profile</button>
+                <button class="nav-btn" onclick="showTab('offers')">Offer Compare</button>
+            </div>
+            
             <button class="logout-btn" onclick="handleLogout()">Logout</button>
         </div>
 
@@ -170,19 +207,24 @@
             <div id="dashboard" class="tab show">
                 <div class="page-header">
                     <div class="page-title">Dashboard</div>
+                    <div class="page-subtitle">Your job search overview</div>
                 </div>
                 <div class="stat-grid">
                     <div class="stat-card">
                         <div class="stat-number" id="stat-opps">0</div>
-                        <div style="color: #999; margin-top: 0.5rem;">Opportunities</div>
+                        <div class="stat-label">Opportunities</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-number">0</div>
-                        <div style="color: #999; margin-top: 0.5rem;">Assessed</div>
+                        <div class="stat-number" id="stat-applied">0</div>
+                        <div class="stat-label">Applied</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-interviews">0</div>
+                        <div class="stat-label">Interviews</div>
                     </div>
                 </div>
                 <div class="card-box">
-                    <div class="card-title">Recent</div>
+                    <div class="card-title">Recent Opportunities</div>
                     <div id="recent-opps"></div>
                 </div>
             </div>
@@ -190,50 +232,223 @@
             <div id="opportunities" class="tab">
                 <div class="page-header">
                     <div class="page-title">Opportunities</div>
+                    <div class="page-subtitle">Track People Ops roles</div>
                 </div>
-                <button class="btn" onclick="openAddModal()">+ Add</button>
-                <div class="card-box" style="margin-top: 2rem;">
+                <button class="btn" onclick="openAddModal()">+ Add Opportunity</button>
+                <div class="card-box" style="margin-top: 1.5rem;">
                     <div id="opps-list"></div>
+                </div>
+            </div>
+
+            <div id="company" class="tab">
+                <div class="page-header">
+                    <div class="page-title">Company Assessment</div>
+                    <div class="page-subtitle">Evaluate People Ops maturity</div>
+                </div>
+                <div class="card-box">
+                    <div class="card-title">HRIS & Systems</div>
+                    <div class="form-group">
+                        <label>HRIS System</label>
+                        <input type="text" placeholder="e.g., Personio, BambooHR">
+                    </div>
+                    <div class="form-group">
+                        <label>Company Size</label>
+                        <select>
+                            <option>Select size</option>
+                            <option>1-10</option>
+                            <option>11-50</option>
+                            <option>51-200</option>
+                            <option>200-1000</option>
+                            <option>1000+</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assessment Notes</label>
+                        <textarea placeholder="Maturity level, team structure, culture notes..."></textarea>
+                    </div>
+                    <button class="btn" style="width: 100%;">Save Assessment</button>
+                </div>
+            </div>
+
+            <div id="interview" class="tab">
+                <div class="page-header">
+                    <div class="page-title">Interview Preparation</div>
+                    <div class="page-subtitle">Critical questions & preparation</div>
+                </div>
+                <div class="card-box">
+                    <div class="card-title">Key Interview Questions</div>
+                    <div style="color: #666; font-size: 0.9rem; line-height: 1.6;">
+                        <p><strong>Strategic:</strong> What is your People Ops maturity roadmap? How do you measure HR effectiveness? Top 3 people challenges?</p>
+                        <p style="margin-top: 1rem;"><strong>Operational:</strong> HRIS/Payroll systems? Team size? Headcount growth? Compliance (German labor)?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="contract" class="tab">
+                <div class="page-header">
+                    <div class="page-title">Contract Analysis</div>
+                    <div class="page-subtitle">Understand your agreement</div>
+                </div>
+                <div class="card-box">
+                    <div class="card-title">Key Contract Elements</div>
+                    <div class="form-group">
+                        <label>Employment Type</label>
+                        <select>
+                            <option>Permanent Full-Time</option>
+                            <option>Fixed-Term</option>
+                            <option>Part-Time</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Notice Period (days)</label>
+                        <input type="number" placeholder="30">
+                    </div>
+                    <div class="form-group">
+                        <label>Probation Period (months)</label>
+                        <input type="number" placeholder="3">
+                    </div>
+                    <button class="btn" style="width: 100%;">Save Details</button>
                 </div>
             </div>
 
             <div id="compensation" class="tab">
                 <div class="page-header">
-                    <div class="page-title">Compensation</div>
+                    <div class="page-title">Compensation Calculator</div>
+                    <div class="page-subtitle">German salary breakdown</div>
                 </div>
                 <div class="card-box">
                     <div class="form-group">
                         <label>Annual Gross (€)</label>
                         <input type="number" id="gross-salary" placeholder="120000">
                     </div>
-                    <button class="btn" onclick="calculateNet()">Calculate</button>
-                    <div style="margin-top: 2rem; padding: 1.5rem; background: #faf8f3; border-radius: 6px;">
-                        <div style="color: #999; font-size: 0.9rem;">Monthly Net</div>
+                    <button class="btn" onclick="calculateNet()" style="width: 100%; margin-bottom: 1rem;">Calculate</button>
+                    <div style="padding: 1.2rem; background: #faf8f3; border-radius: 6px;">
+                        <div style="color: #999; font-size: 0.85rem; margin-bottom: 0.5rem;">Monthly Net Salary</div>
                         <div style="font-family: 'Playfair Display'; font-size: 2rem; color: var(--accent); font-weight: 700;" id="net-result">€0</div>
                     </div>
                 </div>
             </div>
 
-            <div id="profile" class="tab">
+            <div id="commute" class="tab">
                 <div class="page-header">
-                    <div class="page-title">Profile</div>
+                    <div class="page-title">Commute Calculator</div>
+                    <div class="page-subtitle">Travel time & cost</div>
                 </div>
                 <div class="card-box">
-                    <div class="card-title">Your Info</div>
                     <div class="form-group">
-                        <label>Name</label>
+                        <label>From Address</label>
+                        <input type="text" placeholder="Your location">
+                    </div>
+                    <div class="form-group">
+                        <label>To Address</label>
+                        <input type="text" placeholder="Office location">
+                    </div>
+                    <div class="form-group">
+                        <label>Days in Office per Week</label>
+                        <input type="number" min="0" max="5" placeholder="3">
+                    </div>
+                    <button class="btn" style="width: 100%;" onclick="calculateCommute()">Calculate</button>
+                </div>
+            </div>
+
+            <div id="germany" class="tab">
+                <div class="page-header">
+                    <div class="page-title">Germany Employment Guide</div>
+                    <div class="page-subtitle">Know your rights and obligations</div>
+                </div>
+                <div class="card-box">
+                    <div class="card-title">Key German Labor Laws</div>
+                    <div style="color: #666; font-size: 0.9rem; line-height: 1.8;">
+                        <p><strong>Working Hours:</strong> Max 8/day, 40/week. Overtime compensated.</p>
+                        <p><strong>Vacation:</strong> Minimum 20 days/year (most offer 25-30).</p>
+                        <p><strong>Sick Leave:</strong> 6 weeks paid, then 70% statutory benefit.</p>
+                        <p><strong>Notice Period:</strong> Default 4 weeks to 15th/end of month. Probation: 2 weeks.</p>
+                        <p><strong>Severance:</strong> Not mandatory unless mutually agreed. Calculate: 0.5-1.0 × monthly salary × years.</p>
+                        <p><strong>Taxes:</strong> Income tax + solidarity (5.5%) + church (8-9%) + social security (~20%).</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="documents" class="tab">
+                <div class="page-header">
+                    <div class="page-title">Documents & Credentials</div>
+                    <div class="page-subtitle">Track SCHUFA and references</div>
+                </div>
+                <div class="card-box">
+                    <div class="card-title">SCHUFA & References</div>
+                    <div class="form-group">
+                        <label>SCHUFA Score</label>
+                        <input type="number" placeholder="300-955">
+                    </div>
+                    <div class="form-group">
+                        <label>References</label>
+                        <textarea placeholder="Name, company, contact..."></textarea>
+                    </div>
+                    <button class="btn" style="width: 100%;">Save</button>
+                </div>
+            </div>
+
+            <div id="profile" class="tab">
+                <div class="page-header">
+                    <div class="page-title">Your Profile</div>
+                    <div class="page-subtitle">Professional information</div>
+                </div>
+                <div class="card-box">
+                    <div class="form-group">
+                        <label>Full Name</label>
                         <input type="text" id="profile-name" placeholder="Your name">
                     </div>
                     <div class="form-group">
-                        <label>Title</label>
+                        <label>Current Title</label>
                         <input type="text" id="profile-title" placeholder="Head of People">
                     </div>
                     <div class="form-group">
-                        <label>Years</label>
-                        <input type="number" id="profile-years" placeholder="10">
+                        <label>Years in People Ops</label>
+                        <input type="number" id="profile-years" placeholder="10" min="0">
                     </div>
-                    <button class="btn" onclick="saveProfile()">Save</button>
+                    <div class="form-group">
+                        <label>Leadership Level</label>
+                        <select id="profile-level">
+                            <option value="">Select</option>
+                            <option value="ic">IC</option>
+                            <option value="lead">Lead</option>
+                            <option value="manager">Manager</option>
+                            <option value="director">Director</option>
+                        </select>
+                    </div>
+                    <button class="btn" style="width: 100%;" onclick="saveProfile()">Save</button>
                 </div>
+            </div>
+
+            <div id="offers" class="tab">
+                <div class="page-header">
+                    <div class="page-title">Offer Comparison</div>
+                    <div class="page-subtitle">Compare job offers</div>
+                </div>
+                <div class="card-box">
+                    <div class="card-title">Offer 1</div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="offer1-company" placeholder="Company">
+                    </div>
+                    <div class="form-group">
+                        <label>Gross Salary (€)</label>
+                        <input type="number" id="offer1-salary" placeholder="120000">
+                    </div>
+                </div>
+                <div class="card-box">
+                    <div class="card-title">Offer 2</div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="offer2-company" placeholder="Company">
+                    </div>
+                    <div class="form-group">
+                        <label>Gross Salary (€)</label>
+                        <input type="number" id="offer2-salary" placeholder="115000">
+                    </div>
+                </div>
+                <button class="btn" style="width: 100%;" onclick="compareOffers()">Compare</button>
+                <div id="comparison-result"></div>
             </div>
         </div>
     </div>
@@ -248,6 +463,15 @@
             <div class="form-group">
                 <label>Role</label>
                 <input type="text" id="modal-role" placeholder="Role">
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="modal-status">
+                    <option>Saved</option>
+                    <option>Applied</option>
+                    <option>Interview</option>
+                    <option>Offer</option>
+                </select>
             </div>
             <button class="btn" style="width: 100%; margin-bottom: 0.75rem;" onclick="addOpportunity()">Add</button>
             <button class="btn" style="width: 100%; background: white; color: var(--text); border: 1px solid var(--border);" onclick="closeModal()">Cancel</button>
@@ -334,15 +558,20 @@
         async function addOpportunity() {
             const company = document.getElementById('modal-company').value;
             const role = document.getElementById('modal-role').value;
+            const status = document.getElementById('modal-status').value;
             if (!company || !role) { alert('Fill all'); return; }
-            const { error } = await sb.from('opportunities').insert([{ user_id: user.id, company, role, created_at: new Date().toISOString() }]);
+            const { error } = await sb.from('opportunities').insert([{ user_id: user.id, company, role, status, created_at: new Date().toISOString() }]);
             if (!error) { closeModal(); loadData(); }
         }
 
         async function loadData() {
             const { data: opps } = await sb.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+            const applied = opps?.filter(o => o.status === 'Applied').length || 0;
+            const interviews = opps?.filter(o => o.status === 'Interview').length || 0;
             document.getElementById('stat-opps').textContent = opps?.length || 0;
-            const html = opps?.map(o => `<div class="opp-item"><div class="opp-company">${o.company}</div><div style="color: #999; font-size: 0.9rem;">${o.role}</div></div>`).join('') || 'None yet';
+            document.getElementById('stat-applied').textContent = applied;
+            document.getElementById('stat-interviews').textContent = interviews;
+            const html = opps?.map(o => `<div class="opp-item"><div class="opp-company">${o.company}</div><div class="opp-role">${o.role} • ${o.status}</div></div>`).join('') || 'None yet';
             document.getElementById('opps-list').innerHTML = html;
             const recent = opps?.slice(0, 3).map(o => `<div style="margin-bottom: 1rem;"><strong>${o.company}</strong><br><small style="color: #999;">${o.role}</small></div>`).join('') || 'No data';
             document.getElementById('recent-opps').innerHTML = recent;
@@ -354,12 +583,25 @@
             document.getElementById('net-result').textContent = '€' + net.toLocaleString();
         }
 
+        function calculateCommute() {
+            alert('Berlin commute estimate:\n\n- Local: 30-60 min\n- Outer: 60-90 min\n- Cost: €60-100/month with BVG subscription');
+        }
+
+        function compareOffers() {
+            const o1salary = parseInt(document.getElementById('offer1-salary').value) || 0;
+            const o2salary = parseInt(document.getElementById('offer2-salary').value) || 0;
+            const o1net = Math.round(o1salary / 12 * 0.58);
+            const o2net = Math.round(o2salary / 12 * 0.58);
+            const diff = o1net - o2net;
+            const html = `<div class="card-box" style="margin-top: 1rem;"><div class="card-title">Results</div><table class="table"><tr><th></th><th>${document.getElementById('offer1-company').value}</th><th>${document.getElementById('offer2-company').value}</th></tr><tr><td>Monthly Net</td><td>€${o1net.toLocaleString()}</td><td>€${o2net.toLocaleString()}</td></tr><tr><td style="color: ${diff > 0 ? '#059669' : '#dc2626'};"><strong>Difference</strong></td><td colspan="2">€${Math.abs(diff).toLocaleString()} ${diff > 0 ? 'more' : 'less'}</td></tr></table></div>`;
+            document.getElementById('comparison-result').innerHTML = html;
+        }
+
         function saveProfile() {
             const name = document.getElementById('profile-name').value;
             const title = document.getElementById('profile-title').value;
-            const years = document.getElementById('profile-years').value;
             if (name && title) {
-                localStorage.setItem('profile-' + user.id, JSON.stringify({ name, title, years }));
+                localStorage.setItem('profile-' + user.id, JSON.stringify({ name, title, years: document.getElementById('profile-years').value, level: document.getElementById('profile-level').value }));
                 alert('Saved');
             }
         }
@@ -371,6 +613,7 @@
                 document.getElementById('profile-name').value = p.name || '';
                 document.getElementById('profile-title').value = p.title || '';
                 document.getElementById('profile-years').value = p.years || '';
+                document.getElementById('profile-level').value = p.level || '';
             }
         }
 
