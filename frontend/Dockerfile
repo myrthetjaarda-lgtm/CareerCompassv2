@@ -1,17 +1,12 @@
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
 FROM node:18-alpine
+
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/public ./public
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
 
 EXPOSE 3000
-CMD ["npm", "start"]
+
+CMD ["npm", "run", "dev"]
