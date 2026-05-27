@@ -41,7 +41,7 @@ create table if not exists contract_analyses (
     updated_at timestamptz default now()
 );
 
--- ── DOCUMENTS (SCHUFA + certs + refs) ────────────────────────────────────────
+-- ── DOCUMENTS (SCHUFA + certs + refs + bank accounts) ────────────────────────
 create table if not exists documents (
     id uuid primary key default gen_random_uuid(),
     user_id uuid unique references auth.users(id) on delete cascade,
@@ -50,6 +50,7 @@ create table if not exists documents (
     schufa_notes text,
     certifications jsonb default '[]',
     references jsonb default '[]',
+    bank_accounts jsonb default '[]',
     updated_at timestamptz default now()
 );
 

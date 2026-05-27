@@ -823,6 +823,40 @@
                         <div id="ref-list" style="margin-bottom: 1rem;"></div>
                         <button class="btn btn-sm" onclick="openRefModal()">+ Add Reference</button>
                     </div>
+
+                    <div class="card-box">
+                        <div class="card-title">Bank Accounts</div>
+                        <div class="form-group">
+                            <label>Label (e.g. Main, Savings)</label>
+                            <input type="text" id="bank-label" placeholder="e.g. Main account">
+                        </div>
+                        <div class="form-group">
+                            <label>Account Holder</label>
+                            <input type="text" id="bank-holder" placeholder="Full name as on account">
+                        </div>
+                        <div class="form-group">
+                            <label>IBAN</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="bank-iban" placeholder="DE89 3704 0044 0532 0130 00" style="flex:1; text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+                                <button class="btn btn-sm btn-outline" onclick="checkIBAN()">Verify</button>
+                            </div>
+                            <div id="iban-result" style="font-size:0.8rem; margin-top:0.3rem;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>BIC / SWIFT</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="bank-bic" placeholder="COBADEFFXXX" style="flex:1; text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+                                <button class="btn btn-sm btn-outline" onclick="checkBIC()">Verify</button>
+                            </div>
+                            <div id="bic-result" style="font-size:0.8rem; margin-top:0.3rem;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Bank Name</label>
+                            <input type="text" id="bank-name" placeholder="e.g. Deutsche Bank, N26, ING">
+                        </div>
+                        <button class="btn btn-sm" onclick="addBankAccount()">+ Add Account</button>
+                        <div id="bank-list" style="margin-top: 1rem;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1088,6 +1122,7 @@
     let currentFilter = 'all';
     let localCerts = [];
     let localRefs = [];
+    let localBankAccounts = [];
 
     // ── INIT ──────────────────────────────────────────────────────────────────
     async function init() {
@@ -1597,6 +1632,7 @@
             schufa_notes: notes,
             certifications: localCerts,
             references: localRefs,
+            bank_accounts: localBankAccounts,
             updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
         if (error) { alert(error.message); return; }
@@ -1615,6 +1651,7 @@
             schufa_notes: notes,
             certifications: localCerts,
             references: localRefs,
+            bank_accounts: localBankAccounts,
             updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
     }
@@ -1642,9 +1679,11 @@
             if (data.schufa_score) renderSchufaRating(data.schufa_score);
             localCerts = data.certifications || [];
             localRefs = data.references || [];
+            localBankAccounts = data.bank_accounts || [];
         }
         renderCerts();
         renderRefs();
+        renderBankAccounts();
     }
 
     // Certifications — use in-memory localCerts, sync to Supabase on change
@@ -1915,6 +1954,82 @@ RAW NOTES
 ${notes || '(no notes saved yet)'}
 `;
         document.getElementById('interview-notes').value = debrief;
+    }
+
+    // ── BANK ACCOUNTS ─────────────────────────────────────────────────────────
+    function validateIBAN(raw) {
+        const iban = raw.replace(/\s/g, '').toUpperCase();
+        if (!iban) return { valid: false, msg: '' };
+        if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban)) return { valid: false, msg: 'Invalid format' };
+        if (iban.startsWith('DE') && iban.length !== 22) return { valid: false, msg: 'German IBAN must be 22 characters' };
+        const rearranged = iban.slice(4) + iban.slice(0, 4);
+        const numeric = rearranged.split('').map(c => isNaN(c) ? String(c.charCodeAt(0) - 55) : c).join('');
+        let remainder = 0;
+        for (const ch of numeric) remainder = (remainder * 10 + parseInt(ch)) % 97;
+        return remainder === 1
+            ? { valid: true, msg: '✓ Valid IBAN' }
+            : { valid: false, msg: '✗ Invalid check digits — double-check the number' };
+    }
+
+    function validateBIC(raw) {
+        const bic = raw.replace(/\s/g, '').toUpperCase();
+        if (!bic) return { valid: false, msg: '' };
+        if (!/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bic)) return { valid: false, msg: '✗ Invalid BIC format (e.g. COBADEFFXXX)' };
+        return { valid: true, msg: '✓ Valid BIC' };
+    }
+
+    function checkIBAN() {
+        const result = validateIBAN(document.getElementById('bank-iban').value);
+        const el = document.getElementById('iban-result');
+        el.textContent = result.msg;
+        el.style.color = result.valid ? '#059669' : '#dc2626';
+    }
+
+    function checkBIC() {
+        const result = validateBIC(document.getElementById('bank-bic').value);
+        const el = document.getElementById('bic-result');
+        el.textContent = result.msg;
+        el.style.color = result.valid ? '#059669' : '#dc2626';
+    }
+
+    function addBankAccount() {
+        const label = document.getElementById('bank-label').value.trim();
+        const holder = document.getElementById('bank-holder').value.trim();
+        const iban = document.getElementById('bank-iban').value.replace(/\s/g, '').toUpperCase();
+        const bic = document.getElementById('bank-bic').value.replace(/\s/g, '').toUpperCase();
+        const bankName = document.getElementById('bank-name').value.trim();
+        if (!iban) { alert('IBAN is required.'); return; }
+        const ibanCheck = validateIBAN(iban);
+        if (!ibanCheck.valid) { alert('Please enter a valid IBAN before saving.'); return; }
+        localBankAccounts.push({ label, holder, iban, bic, bankName });
+        ['bank-label','bank-holder','bank-iban','bank-bic','bank-name'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('iban-result').textContent = '';
+        document.getElementById('bic-result').textContent = '';
+        saveDocumentsQuiet();
+        renderBankAccounts();
+    }
+
+    function removeBankAccount(i) {
+        localBankAccounts.splice(i, 1);
+        saveDocumentsQuiet();
+        renderBankAccounts();
+    }
+
+    function renderBankAccounts() {
+        const el = document.getElementById('bank-list');
+        if (!el) return;
+        el.innerHTML = localBankAccounts.map((b, i) => `
+            <div style="background:#faf8f3; border:1px solid var(--border); border-radius:6px; padding:0.85rem; margin-bottom:0.6rem; position:relative;">
+                <button onclick="removeBankAccount(${i})" style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;cursor:pointer;color:#dc2626;font-size:1rem;">×</button>
+                <div style="font-weight:600; font-size:0.88rem; margin-bottom:0.4rem;">${escHtml(b.label || 'Account')}${b.bankName ? ' · ' + escHtml(b.bankName) : ''}</div>
+                <div style="font-family:monospace; font-size:0.82rem; color:#555; letter-spacing:0.5px;">${escHtml(formatIBAN(b.iban))}</div>
+                ${b.bic ? `<div style="font-size:0.78rem; color:#999; margin-top:0.2rem;">BIC: ${escHtml(b.bic)}</div>` : ''}
+                ${b.holder ? `<div style="font-size:0.78rem; color:#999;">Holder: ${escHtml(b.holder)}</div>` : ''}
+            </div>`).join('') || '<p style="color:#999; font-size:0.85rem;">No bank accounts added yet.</p>';
+    }
+
+    function formatIBAN(iban) {
+        return (iban || '').replace(/(.{4})/g, '$1 ').trim();
     }
 
     // ── UTILITY ───────────────────────────────────────────────────────────────
