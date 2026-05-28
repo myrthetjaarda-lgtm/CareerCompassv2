@@ -1,0 +1,70 @@
+```tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://dxwnleokbmvbcgqnfulp.supabase.co'
+
+const supabaseAnonKey =
+  'sb_publishable_BvoNQ2rHQiGxid8Yy-TfsQ_KDTylpGF'
+
+const supabase = createClient(
+  supabaseUrl,
+  supabaseAnonKey
+)
+
+function App() {
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'https://career-compassv2.vercel.app'
+      }
+    })
+
+    if (error) {
+      console.error(error)
+      alert(error.message)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        height: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexDirection: 'column',
+        gap: '20px',
+        fontFamily: 'Arial'
+      }}
+    >
+      <h1>CareerCompass</h1>
+
+      <button
+        onClick={signInWithGoogle}
+        style={{
+          padding: '14px 28px',
+          borderRadius: '10px',
+          border: 'none',
+          backgroundColor: '#000',
+          color: '#fff',
+          fontSize: '16px',
+          cursor: 'pointer'
+        }}
+      >
+        Sign in with Google
+      </button>
+    </div>
+  )
+}
+
+ReactDOM.createRoot(
+  document.getElementById('root')!
+).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+```
