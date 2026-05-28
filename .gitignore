@@ -55,3 +55,6 @@ coverage.xml
 *.pem
 *.key
 *.pub
+
+# Vercel build output
+public/
