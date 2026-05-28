@@ -1,10 +1,16 @@
+.git
+.gitignore
 backend/
 docker-compose*.yml
 Dockerfile*
 nginx.conf
 *.md
-.git
-.gitignore
 node_modules/
 .DS_Store
-# Force rebuild - Thu May 28 16:27:59 UTC 2026
+.env*
+.vscode/
+.idea/
+package-lock.json
+yarn.lock
+public/.deployment
+public/version.txt
