@@ -1,6 +1,7 @@
 .git
 .gitignore
 backend/
+frontend/
 docker-compose*.yml
 Dockerfile*
 nginx.conf
@@ -12,5 +13,6 @@ node_modules/
 .idea/
 package-lock.json
 yarn.lock
+supabase_migration.sql
 public/.deployment
 public/version.txt

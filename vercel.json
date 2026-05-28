@@ -1,5 +1,5 @@
 {
-  "buildCommand": "mkdir -p public && cp index.html public/index.html",
+  "framework": null,
   "outputDirectory": "public",
   "cleanUrls": true,
   "headers": [
