@@ -4,7 +4,7 @@
   "description": "People Ops job search intelligence platform",
   "main": "index.html",
   "scripts": {
-    "build": "mkdir -p public && cp index.html public/index.html",
+    "build": "cp index.html public/index.html",
     "dev": "python -m http.server 8000"
   },
   "keywords": ["people-ops", "job-search", "career"],
