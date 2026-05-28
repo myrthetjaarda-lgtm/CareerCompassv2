@@ -4,6 +4,7 @@
   "description": "People Ops job search intelligence platform",
   "main": "index.html",
   "scripts": {
+    "build": "echo 'Static site — no build needed'",
     "dev": "python -m http.server 8000"
   },
   "keywords": ["people-ops", "job-search", "career"],
