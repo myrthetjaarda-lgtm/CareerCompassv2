@@ -1,0 +1,9 @@
+backend/
+docker-compose*.yml
+Dockerfile*
+nginx.conf
+*.md
+.git
+.gitignore
+node_modules/
+.DS_Store

@@ -4,10 +4,14 @@
   "description": "People Ops job search intelligence platform",
   "main": "index.html",
   "scripts": {
-    "build": "cp index.html public/index.html",
-    "dev": "python -m http.server 8000"
+    "build": "cp index.html public/index.html && echo 'Build complete'",
+    "dev": "python -m http.server 8000",
+    "deploy": "vercel --prod"
   },
   "keywords": ["people-ops", "job-search", "career"],
   "author": "Myrthe Tjaarda",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": "18.x || 19.x || 20.x"
+  }
 }

@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cp index.html public/index.html",
+  "outputDirectory": "public",
+  "framework": "static",
+  "cleanUrls": true
+}
