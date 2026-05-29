@@ -27,6 +27,11 @@ export interface Profile {
   certifications: Certification[];
   goals: Goal[];
   systems: System[];
+  steuerIdNr?: string;
+  steuernummer?: string;
+  ustId?: string;
+  krankenkasse?: string;
+  sozialversicherungsnummer?: string;
 }
 
 export interface InterviewStage {

@@ -1176,8 +1176,10 @@ function SalaryCalcPage() {
 // ──────────────────────────────────────────────
 // Country Toolkit
 // ──────────────────────────────────────────────
-function ToolkitPage() {
+function ToolkitPage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData) => void }) {
   const [section, setSection] = useState('tax');
+  const profile = data.profile;
+  const updateProfile = (k: string, v: string) => onUpdate({ ...data, profile: { ...data.profile, [k]: v } });
   const sections = [
     { id: 'tax', label: '🧾 Tax Guide' },
     { id: 'insurance', label: '🏥 Insurance' },
@@ -1212,16 +1214,28 @@ function ToolkitPage() {
           </ul>
         </div>
         <div className="card">
-          <h4 className="fw-600 mb-2">Tax IDs You Need</h4>
-          <div className="table-container"><table>
-            <thead><tr><th>ID Type</th><th>Format</th><th>Used For</th></tr></thead>
-            <tbody>
-              <tr><td>Steueridentifikationsnummer</td><td>12 345 678 901</td><td>Lifetime tax ID, never changes</td></tr>
-              <tr><td>Steuernummer</td><td>12/345/67890</td><td>Annual tax return, per state</td></tr>
-              <tr><td>USt-ID (VAT)</td><td>DE 123 456 789</td><td>Freelancers & businesses only</td></tr>
-              <tr><td>Betriebsnummer</td><td>12 345 678</td><td>Your employer's number (on payslip)</td></tr>
-            </tbody>
-          </table></div>
+          <h4 className="fw-600 mb-2">My Tax IDs</h4>
+          <p className="text-muted text-sm mb-3">Store your personal German tax numbers here. Saved securely in your browser.</p>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {[
+              { key: 'steuerIdNr', label: 'Steueridentifikationsnummer', placeholder: '12 345 678 901', hint: 'Lifetime ID — never changes' },
+              { key: 'steuernummer', label: 'Steuernummer', placeholder: '12/345/67890', hint: 'For annual tax return (varies by state)' },
+              { key: 'ustId', label: 'USt-ID (VAT number)', placeholder: 'DE 123 456 789', hint: 'Freelancers & businesses only' },
+              { key: 'sozialversicherungsnummer', label: 'Sozialversicherungsnummer', placeholder: '12 345678 A 123', hint: 'On your Sozialversicherungsausweis card' },
+              { key: 'krankenkasse', label: 'Krankenkasse', placeholder: 'e.g. TK, AOK, Barmer', hint: 'Your health insurance provider' },
+            ].map(({ key, label, placeholder, hint }) => (
+              <div key={key}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.25rem' }}>{label}</label>
+                <input
+                  value={(profile as unknown as Record<string, string>)[key] || ''}
+                  onChange={e => updateProfile(key, e.target.value)}
+                  placeholder={placeholder}
+                  style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.9rem' }}
+                />
+                <div className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>{hint}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     ),
@@ -2253,7 +2267,7 @@ export default function App() {
         {page === 'references' && <ReferencesPage data={data} onUpdate={setData} isPro={data.user.isPro} />}
         {page === 'offers' && <OfferComparePage data={data} onUpdate={setData} isPro={data.user.isPro} />}
         {page === 'salary-calc' && <SalaryCalcPage />}
-        {page === 'toolkit' && <ToolkitPage />}
+        {page === 'toolkit' && <ToolkitPage data={data} onUpdate={setData} />}
         {page === 'profile' && <ProfilePage data={data} onUpdate={setData} />}
         {page === 'admin' && data.user.isAdmin && <AdminDashboard data={data} />}
       </div>
