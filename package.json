@@ -2,6 +2,7 @@
   "name": "careercompass",
   "version": "3.0.0",
   "private": true,
+  "type": "module",
   "description": "People Ops job search intelligence platform",
   "author": "Myrthe Tjaarda",
   "scripts": {
