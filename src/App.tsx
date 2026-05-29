@@ -960,13 +960,28 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
   const [selected, setSelected] = useState<Reference | null>(null);
   const [analyseId, setAnalyseId] = useState('');
   const [analysing, setAnalysing] = useState(false);
+  const [pdfFile, setPdfFile] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [viewPdf, setViewPdf] = useState<Reference | null>(null);
   const [form, setForm] = useState({ name: '', title: '', company: '', email: '', phone: '', relationship: '', grade: '' as RefGrade | '', notes: '', letterText: '', languageOfLetter: 'en' });
+
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== 'application/pdf') { alert('Please select a PDF file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('PDF must be under 5 MB.'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setPdfFile({ dataUrl: ev.target!.result as string, name: file.name });
+    reader.readAsDataURL(file);
+  };
 
   const addRef = () => {
     if (!form.name) return;
-    const ref: Reference = { ...form, id: Date.now().toString(), grade: form.grade as RefGrade || undefined };
+    const ref: Reference = {
+      ...form, id: Date.now().toString(), grade: form.grade as RefGrade || undefined,
+      ...(pdfFile ? { letterPdf: pdfFile.dataUrl, letterPdfName: pdfFile.name } : {}),
+    };
     onUpdate({ ...data, references: [...data.references, ref] });
     setForm({ name: '', title: '', company: '', email: '', phone: '', relationship: '', grade: '', notes: '', letterText: '', languageOfLetter: 'en' });
+    setPdfFile(null);
     setShowAdd(false);
   };
 
@@ -1013,12 +1028,15 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
                 <div className="text-muted text-sm">{ref.title} @ {ref.company}</div>
                 {ref.email && <div className="text-xs text-muted mt-1">{ref.email}</div>}
                 {ref.sentiment && <div className="mt-1"><span className={`tag tag-${ref.sentiment === 'positive' ? 'green' : ref.sentiment === 'neutral' ? 'gray' : 'red'}`}>{ref.sentiment}</span></div>}
-                {ref.letterText && isPro && (
-                  <button className="btn btn-sm btn-outline mt-2" onClick={e => { e.stopPropagation(); analyseRef(ref); }} disabled={analysing && analyseId === ref.id}>
-                    {analysing && analyseId === ref.id ? '…' : '🤖 Analyse Letter'}
-                  </button>
-                )}
-                <button className="btn btn-sm btn-danger mt-1" style={{ fontSize: '0.75rem' }} onClick={e => { e.stopPropagation(); deleteRef(ref.id); }}>Delete</button>
+                <div className="flex gap-1 mt-2 flex-wrap">
+                  {ref.letterPdf && <button className="btn btn-sm btn-outline" onClick={e => { e.stopPropagation(); setViewPdf(ref); }}>📄 View PDF</button>}
+                  {ref.letterText && isPro && (
+                    <button className="btn btn-sm btn-outline" onClick={e => { e.stopPropagation(); analyseRef(ref); }} disabled={analysing && analyseId === ref.id}>
+                      {analysing && analyseId === ref.id ? '…' : '🤖 Analyse'}
+                    </button>
+                  )}
+                  <button className="btn btn-sm btn-danger" style={{ fontSize: '0.75rem' }} onClick={e => { e.stopPropagation(); deleteRef(ref.id); }}>Delete</button>
+                </div>
               </div>
             ))}
           </div>
@@ -1050,10 +1068,16 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
             </select>
           </div>
         </div>
-        <div className="form-group"><label>Reference Letter Text (for AI analysis)</label><textarea rows={6} value={form.letterText} onChange={e => setForm(p => ({ ...p, letterText: e.target.value }))} placeholder="Paste the reference letter text here..." /></div>
+        <div className="form-group">
+          <label>Signed Reference Letter (PDF)</label>
+          <input type="file" accept="application/pdf" onChange={handlePdfUpload} style={{ fontSize: '0.9rem' }} />
+          {pdfFile && <div className="mt-1 flex items-center gap-1"><span className="tag tag-green">✓ {pdfFile.name}</span><button className="btn btn-sm btn-outline" style={{ padding: '2px 8px' }} onClick={() => setPdfFile(null)}>Remove</button></div>}
+          <p className="text-xs text-muted mt-1">Upload the signed PDF (max 5 MB). Stored locally in your browser.</p>
+        </div>
+        <div className="form-group"><label>Letter Text (for AI analysis — paste text from the letter)</label><textarea rows={4} value={form.letterText} onChange={e => setForm(p => ({ ...p, letterText: e.target.value }))} placeholder="Optional: paste the letter text here for AI sentiment analysis..." /></div>
         <div className="form-group"><label>Notes</label><textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} /></div>
         <div className="flex gap-1 justify-between mt-2">
-          <button className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
+          <button className="btn btn-outline" onClick={() => { setShowAdd(false); setPdfFile(null); }}>Cancel</button>
           <button className="btn" onClick={addRef}>Add Reference</button>
         </div>
       </Modal>
@@ -1062,9 +1086,31 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
         <Modal open onClose={() => setSelected(null)} title={selected.name}>
           <div><p><strong>Title:</strong> {selected.title}</p><p><strong>Company:</strong> {selected.company}</p><p><strong>Email:</strong> {selected.email}</p><p><strong>Phone:</strong> {selected.phone}</p><p><strong>Relationship:</strong> {selected.relationship}</p></div>
           {selected.grade && <div className="mt-2"><GradeBadge grade={selected.grade} /></div>}
-          {selected.letterText && <div className="mt-2"><p className="fw-600 text-sm mb-1">Letter:</p><p style={{ fontSize: '0.85rem', color: '#555', whiteSpace: 'pre-wrap' }}>{selected.letterText}</p></div>}
+          {selected.letterPdf && (
+            <div className="mt-2 p-2" style={{ background: '#f8f9fa', borderRadius: 8 }}>
+              <p className="fw-600 text-sm mb-1">📄 Signed Reference Letter</p>
+              <p className="text-xs text-muted mb-1">{selected.letterPdfName}</p>
+              <div className="flex gap-1">
+                <button className="btn btn-sm" onClick={() => setViewPdf(selected)}>View PDF</button>
+                <a className="btn btn-sm btn-outline" href={selected.letterPdf} download={selected.letterPdfName}>Download</a>
+              </div>
+            </div>
+          )}
+          {selected.letterText && <div className="mt-2"><p className="fw-600 text-sm mb-1">Letter Text:</p><p style={{ fontSize: '0.85rem', color: '#555', whiteSpace: 'pre-wrap' }}>{selected.letterText}</p></div>}
           {selected.notes && <div className="mt-2"><p className="fw-600 text-sm mb-1">Notes:</p><p style={{ fontSize: '0.9rem' }}>{selected.notes}</p></div>}
           <button className="btn btn-outline mt-2" onClick={() => setSelected(null)}>Close</button>
+        </Modal>
+      )}
+
+      {viewPdf && viewPdf.letterPdf && (
+        <Modal open onClose={() => setViewPdf(null)} title={`📄 ${viewPdf.letterPdfName || 'Reference Letter'}`}>
+          <div style={{ width: '100%', height: '70vh' }}>
+            <iframe src={viewPdf.letterPdf} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 6 }} title="Reference Letter PDF" />
+          </div>
+          <div className="flex gap-1 mt-2">
+            <a className="btn btn-outline" href={viewPdf.letterPdf} download={viewPdf.letterPdfName}>Download PDF</a>
+            <button className="btn btn-outline" onClick={() => setViewPdf(null)}>Close</button>
+          </div>
         </Modal>
       )}
     </div>

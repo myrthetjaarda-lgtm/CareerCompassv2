@@ -124,6 +124,8 @@ export interface Reference {
   strengthRating?: number;
   notes?: string;
   letterText?: string;
+  letterPdf?: string;
+  letterPdfName?: string;
   languageOfLetter?: string;
   usedForApplications?: string[];
 }
