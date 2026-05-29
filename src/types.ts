@@ -87,6 +87,8 @@ export interface Application {
   companyWebsite?: string;
   companyMission?: string;
   companyValues?: string;
+  timeline?: { date: string; status: string; note?: string }[];
+  referenceIds?: string[];
 }
 
 export interface Offer {

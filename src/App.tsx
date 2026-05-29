@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AppData, Application, Reference, Offer, AppStatus, RefGrade, InterviewStage, Theme, FontSize, ADMIN_EMAIL, STATUS_LABELS, GRADE_LABELS, SECTORS, DEPARTMENTS, CEFR_LEVELS, DEFAULT_DATA, PRO_LIMITS } from './types';
 import { loadData, saveData, exportData } from './storage';
 
-type Page = 'dashboard' | 'applications' | 'cv-upload' | 'jd-extract' | 'interviews' | 'references' | 'offers' | 'salary-calc' | 'toolkit' | 'profile' | 'admin';
+type Page = 'dashboard' | 'applications' | 'cv-upload' | 'jd-extract' | 'interview-prep' | 'interviews' | 'references' | 'offers' | 'salary-calc' | 'toolkit' | 'profile' | 'admin';
 
 // ──────────────────────────────────────────────
 // Salary Calculator Logic
@@ -102,6 +102,13 @@ function Dashboard({ data, onNavigate }: { data: AppData; onNavigate: (p: Page) 
     return d >= now && d <= weekAhead;
   }).sort((a, b) => a.date.localeCompare(b.date));
 
+  const staleApps = apps.filter(a => {
+    if (['rejected', 'withdrawn', 'offer'].includes(a.status)) return false;
+    const added = new Date(a.dateAdded);
+    const daysSince = Math.floor((now.getTime() - added.getTime()) / (1000 * 60 * 60 * 24));
+    return daysSince > 21 && a.status === 'applied';
+  });
+
   const stages: { label: string; status: AppStatus; color: string }[] = [
     { label: 'Saved', status: 'saved', color: '#3b82f6' },
     { label: 'Applied', status: 'applied', color: '#f59e0b' },
@@ -187,6 +194,22 @@ function Dashboard({ data, onNavigate }: { data: AppData; onNavigate: (p: Page) 
         </div>
       )}
 
+      {staleApps.length > 0 && (
+        <div className="card mt-3" style={{ borderLeft: '4px solid #f59e0b' }}>
+          <h3 className="section-title mb-2">⚠️ No Response ({staleApps.length})</h3>
+          <p className="text-xs text-muted mb-2">Applied 3+ weeks ago with no update:</p>
+          {staleApps.slice(0, 5).map(a => (
+            <div key={a.id} className="flex justify-between items-center py-1" style={{ borderBottom: '1px solid #f0f0f0' }}>
+              <div>
+                <span className="fw-600 text-sm">{a.company}</span>
+                <span className="text-muted text-sm"> — {a.role}</span>
+              </div>
+              <span className="text-xs text-muted">{Math.floor((now.getTime() - new Date(a.dateAdded).getTime()) / (1000 * 60 * 60 * 24))}d ago</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {recent.length > 0 && (
         <div className="card">
           <h3 className="section-title mb-2">Recent Applications</h3>
@@ -214,10 +237,10 @@ function Dashboard({ data, onNavigate }: { data: AppData; onNavigate: (p: Page) 
 // ──────────────────────────────────────────────
 // Application Detail Modal (9 tabs)
 // ──────────────────────────────────────────────
-function AppDetailModal({ app, onClose, onUpdate }: { app: Application; onClose: () => void; onUpdate: (a: Application) => void }) {
+function AppDetailModal({ app, onClose, onUpdate, data }: { app: Application; onClose: () => void; onUpdate: (a: Application) => void; data?: AppData }) {
   const [tab, setTab] = useState(0);
   const [local, setLocal] = useState<Application>({ ...app });
-  const tabs = ['Overview', 'Job Description', 'Cover Letter', 'Research', 'Skills Match', 'Salary & Benefits', 'Case Study', 'Questions', 'Interviews'];
+  const tabs = ['Overview', 'Job Description', 'Cover Letter', 'Research', 'Skills Match', 'Salary & Benefits', 'Case Study', 'Questions', 'Interviews', '✉️ Emails', '📅 Timeline'];
 
   const save = () => onUpdate(local);
   const update = (k: keyof Application, v: unknown) => setLocal(p => ({ ...p, [k]: v }));
@@ -291,12 +314,35 @@ function AppDetailModal({ app, onClose, onUpdate }: { app: Application; onClose:
             {local.url && <a href={local.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline">🔗 Open Job URL</a>}
           </div>
           <div className="form-group">
-            <textarea rows={18} value={local.jdText || ''} onChange={e => update('jdText', e.target.value)} placeholder="Paste the full job description here — used for AI skill matching, interview prep, and cover letter generation…" style={{ width: '100%', fontSize: '0.88rem', resize: 'vertical' }} />
+            <textarea rows={14} value={local.jdText || ''} onChange={e => update('jdText', e.target.value)} placeholder="Paste the full job description here — used for AI skill matching, interview prep, and cover letter generation…" style={{ width: '100%', fontSize: '0.88rem', resize: 'vertical' }} />
           </div>
           {local.jdText && (
-            <div className="flex gap-1 flex-wrap mt-1">
-              <span className="tag tag-green">✓ {local.jdText.length} characters saved</span>
+            <div className="flex gap-1 flex-wrap mb-3">
+              <span className="tag tag-green">✓ {local.jdText.length} characters</span>
               {local.matchPercent ? <span className="tag tag-blue">{local.matchPercent}% skill match</span> : null}
+            </div>
+          )}
+          {data && data.references.length > 0 && (
+            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
+              <p className="fw-600 text-sm mb-2">📎 Attach Reference Letters</p>
+              <p className="text-xs text-muted mb-2">Select references to include with this application.</p>
+              <div className="flex flex-col gap-1">
+                {data.references.map(ref => {
+                  const attached = (local.referenceIds as string[] | undefined || []).includes(ref.id);
+                  return (
+                    <label key={ref.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6, background: attached ? '#f0f7ff' : '#fafafa', border: `1px solid ${attached ? '#bfdbfe' : '#e5e7eb'}`, cursor: 'pointer', fontSize: '0.88rem' }}>
+                      <input type="checkbox" checked={attached} onChange={() => {
+                        const current = (local.referenceIds as string[] | undefined) || [];
+                        update('referenceIds' as keyof Application, attached ? current.filter(id => id !== ref.id) : [...current, ref.id]);
+                      }} />
+                      <span className="fw-600">{ref.name}</span>
+                      <span className="text-muted">— {ref.title} @ {ref.company}</span>
+                      {ref.grade && <GradeBadge grade={ref.grade} />}
+                      {ref.letterPdf && <span className="tag tag-green" style={{ fontSize: '0.75rem' }}>PDF</span>}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -549,11 +595,93 @@ Kind regards,
         </div>
       )}
 
+      {tab === 9 && (
+        <div>
+          <p className="text-muted text-sm mb-3">One-click email templates for this application. Copy and send.</p>
+          {[
+            {
+              label: 'Follow-up after applying',
+              subject: `Application follow-up — ${local.role} at ${local.company}`,
+              body: `Dear Hiring Team,\n\nI recently applied for the ${local.role} position at ${local.company} and wanted to follow up to express my continued interest in the role.\n\nI am confident that my background in ${data?.profile?.currentTitle || 'my field'} and ${data?.profile?.yearsExperience || ''} years of experience make me a strong fit for this position. I would love the opportunity to discuss how I can contribute to your team.\n\nThank you for your time and consideration. I look forward to hearing from you.\n\nBest regards,\n${data?.profile?.name || ''}`,
+            },
+            {
+              label: 'Thank you after interview',
+              subject: `Thank you — ${local.role} interview at ${local.company}`,
+              body: `Dear [Interviewer Name],\n\nThank you for taking the time to interview me for the ${local.role} position at ${local.company}. It was a pleasure learning more about the role and the team.\n\nOur conversation reinforced my enthusiasm for this opportunity and I am very excited about the possibility of joining ${local.company}. [Add a specific detail from the interview here.]\n\nPlease do not hesitate to reach out if you need any additional information. I look forward to hearing about the next steps.\n\nBest regards,\n${data?.profile?.name || ''}`,
+            },
+            {
+              label: 'Withdraw application',
+              subject: `Withdrawal of application — ${local.role} at ${local.company}`,
+              body: `Dear Hiring Team,\n\nI am writing to withdraw my application for the ${local.role} position at ${local.company}.\n\nAfter careful consideration, I have decided to pursue a different direction at this time. I have a great deal of respect for ${local.company} and hope our paths may cross again in the future.\n\nThank you for the time and consideration you have given my application.\n\nBest regards,\n${data?.profile?.name || ''}`,
+            },
+            {
+              label: 'Request feedback after rejection',
+              subject: `Request for feedback — ${local.role} application`,
+              body: `Dear Hiring Team,\n\nThank you for informing me of your decision regarding the ${local.role} position at ${local.company}.\n\nWhile I am disappointed, I truly appreciate you taking the time to consider my application. I would be very grateful if you could share any feedback on my application or interview performance, as this would help me in my professional development.\n\nThank you again for your time and consideration.\n\nBest regards,\n${data?.profile?.name || ''}`,
+            },
+          ].map(t => (
+            <EmailTemplate key={t.label} label={t.label} subject={t.subject} body={t.body} />
+          ))}
+        </div>
+      )}
+
+      {tab === 10 && (
+        <div>
+          <p className="text-muted text-sm mb-3">Status history for this application.</p>
+          <div style={{ position: 'relative', paddingLeft: 24 }}>
+            {(local.timeline || [{ date: local.dateAdded, status: 'saved', note: 'Application created' }]).map((entry: { date: string; status: string; note?: string }, i: number) => (
+              <div key={i} style={{ position: 'relative', paddingBottom: 16 }}>
+                <div style={{ position: 'absolute', left: -20, top: 4, width: 12, height: 12, borderRadius: '50%', background: 'var(--primary)', border: '2px solid white', boxShadow: '0 0 0 2px var(--primary)' }} />
+                {i < (local.timeline || []).length - 1 && <div style={{ position: 'absolute', left: -15, top: 16, width: 2, height: '100%', background: '#e5e7eb' }} />}
+                <div className="text-xs text-muted">{entry.date ? new Date(entry.date).toLocaleDateString('en-GB') : '—'}</div>
+                <div className="fw-600 text-sm" style={{ textTransform: 'capitalize' }}>{STATUS_LABELS[entry.status as AppStatus] || entry.status}</div>
+                {entry.note && <div className="text-xs text-muted">{entry.note}</div>}
+              </div>
+            ))}
+            {(!local.timeline || local.timeline.length === 0) && (
+              <div>
+                <div style={{ position: 'absolute', left: 4, top: 4, width: 12, height: 12, borderRadius: '50%', background: 'var(--primary)', border: '2px solid white', boxShadow: '0 0 0 2px var(--primary)' }} />
+                <div className="text-xs text-muted">{local.dateAdded ? new Date(local.dateAdded).toLocaleDateString('en-GB') : '—'}</div>
+                <div className="fw-600 text-sm">Saved</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between mt-3" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
         <button className="btn btn-outline" onClick={() => { save(); onClose(); }}>Close & Save</button>
         <button className="btn" onClick={() => { save(); onClose(); }}>Save Changes</button>
       </div>
     </Modal>
+  );
+}
+
+// ──────────────────────────────────────────────
+// EmailTemplate helper
+// ──────────────────────────────────────────────
+function EmailTemplate({ label, subject, body }: { label: string; subject: string; body: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="card mb-2" style={{ border: '1px solid #e5e7eb' }}>
+      <div className="flex justify-between items-center" style={{ cursor: 'pointer' }} onClick={() => setExpanded(p => !p)}>
+        <span className="fw-600 text-sm">✉️ {label}</span>
+        <span className="text-muted text-xs">{expanded ? '▲' : '▼'}</span>
+      </div>
+      {expanded && (
+        <div className="mt-2">
+          <p className="text-xs text-muted mb-1"><strong>Subject:</strong> {subject}</p>
+          <textarea readOnly rows={8} value={body} style={{ width: '100%', fontSize: '0.82rem', border: '1px solid #e5e7eb', borderRadius: 6, padding: 8, background: '#fafafa', resize: 'vertical' }} />
+          <button className="btn btn-sm mt-1" onClick={copy}>{copied ? '✓ Copied!' : 'Copy to clipboard'}</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -566,7 +694,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Application | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
-  const [form, setForm] = useState({ company: '', role: '', location: '', workSetup: 'hybrid' as Application['workSetup'], status: 'saved' as AppStatus, url: '', jdText: '' });
+  const [form, setForm] = useState({ company: '', role: '', location: '', workSetup: 'hybrid' as Application['workSetup'], status: 'saved' as AppStatus, url: '' });
 
   const filtered = data.applications
     .filter(a => filter === 'all' || a.status === filter)
@@ -576,7 +704,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
     if (!form.company || !form.role) return;
     const app: Application = { ...form, id: Date.now().toString(), dateAdded: new Date().toISOString() };
     onUpdate({ ...data, applications: [...data.applications, app] });
-    setForm({ company: '', role: '', location: '', workSetup: 'hybrid', status: 'saved', url: '', jdText: '' });
+    setForm({ company: '', role: '', location: '', workSetup: 'hybrid', status: 'saved', url: '' });
     setShowAdd(false);
   };
 
@@ -691,14 +819,13 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
           </div>
           <div className="form-group"><label>Job URL</label><input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." /></div>
         </div>
-        <div className="form-group"><label>Job Description</label><textarea rows={5} value={form.jdText || ''} onChange={e => setForm(p => ({ ...p, jdText: e.target.value }))} placeholder="Paste the full job description here — used for AI skill matching and interview prep…" /></div>
         <div className="flex gap-1 justify-between mt-2">
           <button className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
           <button className="btn" onClick={addApp}>Add Application</button>
         </div>
       </Modal>
 
-      {selected && <AppDetailModal app={selected} onClose={() => setSelected(null)} onUpdate={app => { updateApp(app); setSelected(null); }} />}
+      {selected && <AppDetailModal app={selected} data={data} onClose={() => setSelected(null)} onUpdate={app => { updateApp(app); setSelected(null); }} />}
     </div>
   );
 }
@@ -2419,6 +2546,104 @@ function OfferComparePage({ data, onUpdate, isPro }: { data: AppData; onUpdate: 
 }
 
 // ──────────────────────────────────────────────
+// Interview Prep Page
+// ──────────────────────────────────────────────
+function InterviewPrepPage({ data, isPro }: { data: AppData; isPro: boolean }) {
+  const [selectedAppId, setSelectedAppId] = useState('');
+  const [customJd, setCustomJd] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<{ questions: { question: string; category: string; suggestedAnswer: string }[]; tips: string[] } | null>(null);
+
+  const selectedApp = data.applications.find(a => a.id === selectedAppId);
+  const jdText = selectedApp?.jdText || customJd;
+  const profile = data.profile;
+
+  const generate = async () => {
+    if (!jdText.trim()) { setError('Please select an application with a JD or paste a JD below.'); return; }
+    setLoading(true); setError(''); setResult(null);
+    try {
+      const res = await fetch('/api/interview-prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jdText, profileSummary: profile.summary, skills: profile.skills, currentTitle: profile.currentTitle, yearsExperience: profile.yearsExperience, level: profile.level }),
+      });
+      if (!res.ok) {
+        let detail = ''; try { const j = await res.json(); detail = j.error || ''; } catch { /* ignore */ }
+        throw new Error(`Failed (${res.status})${detail ? ': ' + detail : ''}`);
+      }
+      setResult(await res.json());
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to generate questions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const categoryColor: Record<string, string> = { behavioral: 'blue', technical: 'purple', situational: 'green', motivation: 'orange', culture: 'gray' };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Interview Prep</h1><p className="page-subtitle">AI-generated questions and answers tailored to the role</p></div>
+      </div>
+
+      <div className="card" style={{ maxWidth: 700, marginBottom: '1.5rem' }}>
+        <div className="form-group">
+          <label>Select an application (optional)</label>
+          <select value={selectedAppId} onChange={e => setSelectedAppId(e.target.value)}>
+            <option value="">— Choose application —</option>
+            {data.applications.filter(a => a.jdText).map(a => (
+              <option key={a.id} value={a.id}>{a.company} — {a.role}</option>
+            ))}
+          </select>
+          <p className="text-xs text-muted mt-1">Only applications with a saved JD are listed.</p>
+        </div>
+        {!selectedAppId && (
+          <div className="form-group">
+            <label>Or paste a job description</label>
+            <textarea rows={6} value={customJd} onChange={e => setCustomJd(e.target.value)} placeholder="Paste JD here…" />
+          </div>
+        )}
+        {selectedApp && (
+          <div className="alert" style={{ background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+            <strong>{selectedApp.company}</strong> — {selectedApp.role} · {selectedApp.location}
+          </div>
+        )}
+        {error && <div className="alert alert-error mb-2">{error}</div>}
+        <button className="btn" onClick={generate} disabled={loading || !jdText.trim()}>
+          {loading ? '🤖 Generating…' : '🤖 Generate Interview Questions'}
+        </button>
+      </div>
+
+      {result && (
+        <div>
+          {result.tips && result.tips.length > 0 && (
+            <div className="card mb-3" style={{ background: '#f0fdf4', border: '1px solid #86efac' }}>
+              <h3 className="fw-600 mb-2">💡 Quick Tips for This Role</h3>
+              <ul style={{ paddingLeft: '1.25rem', margin: 0 }}>
+                {result.tips.map((tip, i) => <li key={i} style={{ marginBottom: 4, fontSize: '0.9rem' }}>{tip}</li>)}
+              </ul>
+            </div>
+          )}
+          <div>
+            {result.questions.map((q, i) => (
+              <div key={i} className="card mb-2" style={{ borderLeft: '4px solid var(--primary)' }}>
+                <div className="flex justify-between items-start mb-1">
+                  <p className="fw-600" style={{ fontSize: '0.95rem', flex: 1, marginRight: 8 }}>Q{i + 1}. {q.question}</p>
+                  <span className={`tag tag-${categoryColor[q.category] || 'gray'}`} style={{ flexShrink: 0 }}>{q.category}</span>
+                </div>
+                <p style={{ fontSize: '0.88rem', color: '#4b5563', whiteSpace: 'pre-wrap', marginTop: 6, paddingTop: 6, borderTop: '1px solid #f0f0f0' }}>{q.suggestedAnswer}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
 // Main App
 // ──────────────────────────────────────────────
 export default function App() {
@@ -2487,6 +2712,7 @@ export default function App() {
     { id: 'applications', label: '📋 Applications', section: 'main' },
     { id: 'cv-upload', label: '📄 CV Upload', section: 'main' },
     { id: 'jd-extract', label: '🔍 JD Extract', section: 'main' },
+    { id: 'interview-prep', label: '🤖 Interview Prep', section: 'main' },
     { id: 'interviews', label: '🎤 Interviews', section: 'main' },
     { id: 'references', label: '👥 References', section: 'tools' },
     { id: 'offers', label: '⚖️ Offer Compare', section: 'tools' },
@@ -2562,6 +2788,7 @@ export default function App() {
         {page === 'applications' && <ApplicationsPage data={data} onUpdate={setData} />}
         {page === 'cv-upload' && <CVUploadPage data={data} onUpdate={setData} isPro={data.user.isPro} />}
         {page === 'jd-extract' && <JDExtractPage data={data} onUpdate={setData} isPro={data.user.isPro} />}
+        {page === 'interview-prep' && <InterviewPrepPage data={data} isPro={data.user.isPro} />}
         {page === 'interviews' && <InterviewsPage data={data} />}
         {page === 'references' && <ReferencesPage data={data} onUpdate={setData} isPro={data.user.isPro} />}
         {page === 'offers' && <OfferComparePage data={data} onUpdate={setData} isPro={data.user.isPro} />}
