@@ -217,7 +217,7 @@ function Dashboard({ data, onNavigate }: { data: AppData; onNavigate: (p: Page) 
 function AppDetailModal({ app, onClose, onUpdate }: { app: Application; onClose: () => void; onUpdate: (a: Application) => void }) {
   const [tab, setTab] = useState(0);
   const [local, setLocal] = useState<Application>({ ...app });
-  const tabs = ['Overview', 'Resume', 'Cover Letter', 'Research', 'Skills Match', 'Salary & Benefits', 'Case Study', 'Questions', 'Interviews'];
+  const tabs = ['Overview', 'Job Description', 'Cover Letter', 'Research', 'Skills Match', 'Salary & Benefits', 'Case Study', 'Questions', 'Interviews'];
 
   const save = () => onUpdate(local);
   const update = (k: keyof Application, v: unknown) => setLocal(p => ({ ...p, [k]: v }));
@@ -286,15 +286,17 @@ function AppDetailModal({ app, onClose, onUpdate }: { app: Application; onClose:
 
       {tab === 1 && (
         <div>
-          <p className="text-muted text-sm mb-2">Tailor your resume for this role. Note key matches.</p>
-          <div className="form-group">
-            <label>Resume Notes (tailoring for this role)</label>
-            <textarea rows={8} value={(local as Record<string, unknown>).resumeNotes as string || ''} onChange={e => update('resumeNotes' as keyof Application, e.target.value)} placeholder="Key points to emphasise, skills to highlight, experience to lead with..." />
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-muted text-sm">Paste or edit the job description for this role.</p>
+            {local.url && <a href={local.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline">🔗 Open Job URL</a>}
           </div>
-          {local.matchedSkills && local.matchedSkills.length > 0 && (
-            <div>
-              <p className="fw-600 text-sm mb-1">✅ Skills to highlight (direct matches):</p>
-              <div>{local.matchedSkills.map(s => <span key={s} className="skill-tag skill-match">{s}</span>)}</div>
+          <div className="form-group">
+            <textarea rows={18} value={local.jdText || ''} onChange={e => update('jdText', e.target.value)} placeholder="Paste the full job description here — used for AI skill matching, interview prep, and cover letter generation…" style={{ width: '100%', fontSize: '0.88rem', resize: 'vertical' }} />
+          </div>
+          {local.jdText && (
+            <div className="flex gap-1 flex-wrap mt-1">
+              <span className="tag tag-green">✓ {local.jdText.length} characters saved</span>
+              {local.matchPercent ? <span className="tag tag-blue">{local.matchPercent}% skill match</span> : null}
             </div>
           )}
         </div>
@@ -564,7 +566,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Application | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
-  const [form, setForm] = useState({ company: '', role: '', location: '', workSetup: 'hybrid' as Application['workSetup'], status: 'saved' as AppStatus, url: '' });
+  const [form, setForm] = useState({ company: '', role: '', location: '', workSetup: 'hybrid' as Application['workSetup'], status: 'saved' as AppStatus, url: '', jdText: '' });
 
   const filtered = data.applications
     .filter(a => filter === 'all' || a.status === filter)
@@ -574,7 +576,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
     if (!form.company || !form.role) return;
     const app: Application = { ...form, id: Date.now().toString(), dateAdded: new Date().toISOString() };
     onUpdate({ ...data, applications: [...data.applications, app] });
-    setForm({ company: '', role: '', location: '', workSetup: 'hybrid', status: 'saved', url: '' });
+    setForm({ company: '', role: '', location: '', workSetup: 'hybrid', status: 'saved', url: '', jdText: '' });
     setShowAdd(false);
   };
 
@@ -689,6 +691,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
           </div>
           <div className="form-group"><label>Job URL</label><input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} placeholder="https://..." /></div>
         </div>
+        <div className="form-group"><label>Job Description</label><textarea rows={5} value={form.jdText || ''} onChange={e => setForm(p => ({ ...p, jdText: e.target.value }))} placeholder="Paste the full job description here — used for AI skill matching and interview prep…" /></div>
         <div className="flex gap-1 justify-between mt-2">
           <button className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
           <button className="btn" onClick={addApp}>Add Application</button>
