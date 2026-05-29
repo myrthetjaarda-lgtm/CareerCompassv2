@@ -1,0 +1,100 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: compass_postgres
+    environment:
+      POSTGRES_USER: compass
+      POSTGRES_PASSWORD: compass_dev
+      POSTGRES_DB: compass_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U compass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - compass_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: compass_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - compass_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: compass_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      ENVIRONMENT: development
+      SECRET_KEY: dev-secret-key-change-in-production
+      DATABASE_URL: postgresql://compass:compass_dev@postgres:5432/compass_dev
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "True"
+      LOG_LEVEL: DEBUG
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_HOURS: 24
+      AWS_REGION: eu-central-1
+      USE_AWS: "False"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - compass_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: compass_frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      REACT_APP_ENV: development
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - backend
+    networks:
+      - compass_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  compass_network:
+    driver: bridge
