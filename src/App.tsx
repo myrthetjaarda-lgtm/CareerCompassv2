@@ -999,6 +999,7 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
             employmentFrom: result.employmentFrom || prev.employmentFrom,
             employmentTo: result.employmentTo || prev.employmentTo,
             companyGrade: result.companyGrade || prev.companyGrade,
+            letterText: prev.letterText || result.fullText || '',
           }));
         }
       } catch { /* silent — user can fill manually */ }

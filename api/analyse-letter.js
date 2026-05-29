@@ -23,7 +23,8 @@ export default async function handler(req, res) {
   "summary": "2-3 sentence assessment",
   "highlights": ["positive point 1", "positive point 2"],
   "concerns": ["concern if any — empty array if none"],
-  "recommendation": "Which type of roles this letter works best for"
+  "recommendation": "Which type of roles this letter works best for",
+  "fullText": "the complete verbatim text of the letter, preserving paragraphs with newlines"
 }
 
 Grade scale: A=Excellent/specific praise, B=Good, C=Adequate/generic, D=Weak, E=Poor, F=Not usable.
