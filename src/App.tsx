@@ -1216,23 +1216,63 @@ function ToolkitPage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
         <div className="card">
           <h4 className="fw-600 mb-2">My Tax IDs</h4>
           <p className="text-muted text-sm mb-3">Store your personal German tax numbers here. Saved securely in your browser.</p>
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gap: '1.25rem' }}>
             {[
-              { key: 'steuerIdNr', label: 'Steueridentifikationsnummer', placeholder: '12 345 678 901', hint: 'Lifetime ID — never changes' },
-              { key: 'steuernummer', label: 'Steuernummer', placeholder: '12/345/67890', hint: 'For annual tax return (varies by state)' },
-              { key: 'ustId', label: 'USt-ID (VAT number)', placeholder: 'DE 123 456 789', hint: 'Freelancers & businesses only' },
-              { key: 'sozialversicherungsnummer', label: 'Sozialversicherungsnummer', placeholder: '12 345678 A 123', hint: 'On your Sozialversicherungsausweis card' },
-              { key: 'krankenkasse', label: 'Krankenkasse', placeholder: 'e.g. TK, AOK, Barmer', hint: 'Your health insurance provider' },
-            ].map(({ key, label, placeholder, hint }) => (
-              <div key={key}>
-                <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.25rem' }}>{label}</label>
+              {
+                key: 'steuerIdNr',
+                label: 'Steueridentifikationsnummer',
+                placeholder: '12 345 678 901',
+                who: 'Everyone in Germany',
+                what: 'Your personal lifetime tax ID. Required on every employment contract and payslip. You receive it automatically when registering your address (Anmeldung). Format: 11 digits.',
+              },
+              {
+                key: 'steuernummer',
+                label: 'Steuernummer',
+                placeholder: '12/345/67890',
+                who: 'Everyone who files a tax return; freelancers always need it',
+                what: 'Assigned by your local Finanzamt (tax office). Used for your annual Steuererklärung (tax return). Changes if you move to another state. Freelancers need this to issue invoices.',
+              },
+              {
+                key: 'ustId',
+                label: 'USt-ID (VAT number)',
+                placeholder: 'DE 123 456 789',
+                who: 'Freelancers and businesses only',
+                what: 'Required if you invoice other businesses in the EU (to avoid charging VAT across borders). Apply at your Finanzamt once you register as self-employed. Format: DE + 9 digits.',
+              },
+              {
+                key: 'sozialversicherungsnummer',
+                label: 'Sozialversicherungsnummer',
+                placeholder: '12 345678 A 123',
+                who: 'All employees and freelancers',
+                what: 'Your social security number. Required by every employer. Found on your Sozialversicherungsausweis (the small card sent by your health insurer). Lifetime number — never changes.',
+              },
+              {
+                key: 'krankenkasse',
+                label: 'Krankenkasse (Health Insurer)',
+                placeholder: 'e.g. TK, AOK, Barmer, DAK',
+                who: 'Everyone — health insurance is mandatory in Germany',
+                what: 'Your statutory health insurance provider. Tell your employer which Krankenkasse you use so they can register you and split contributions (~7.3% each). You can switch once per year.',
+              },
+              {
+                key: 'krankenkasseMitgliedsnummer',
+                label: 'Krankenkasse Mitgliedsnummer (Member number)',
+                placeholder: 'e.g. 123456789',
+                who: 'All health insurance members',
+                what: 'Your individual membership number with your Krankenkasse. Found on your health insurance card (Gesundheitskarte). Needed for doctor visits, medical claims and when switching jobs.',
+              },
+            ].map(({ key, label, placeholder, who, what }) => (
+              <div key={key} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: '0.4rem' }}>{label}</label>
                 <input
                   value={(profile as unknown as Record<string, string>)[key] || ''}
                   onChange={e => updateProfile(key, e.target.value)}
                   placeholder={placeholder}
-                  style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.9rem' }}
+                  style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.9rem', marginBottom: '0.5rem' }}
                 />
-                <div className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>{hint}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div><span style={{ color: 'var(--accent)', fontWeight: 600 }}>Who needs it: </span><span className="text-muted">{who}</span></div>
+                  <div><span style={{ color: 'var(--accent)', fontWeight: 600 }}>What for: </span><span className="text-muted">{what}</span></div>
+                </div>
               </div>
             ))}
           </div>
@@ -1562,41 +1602,30 @@ function ProfilePage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
 }
 
 // ──────────────────────────────────────────────
-// Admin Dashboard (Sections 71-72)
+// Admin Dashboard
 // ──────────────────────────────────────────────
 function AdminDashboard({ data }: { data: AppData }) {
   const [section, setSection] = useState('overview');
 
-  // Mock analytics data matching spec
-  const stats = {
-    totalUsers: 2500, proUsers: 500, freeUsers: 2000, convRate: 16.7,
-    mrr: 5000, arr: 60000, mrrGrowth: 12, churnRate: 1.6,
-    activeUsers7d: 1850, activeUsers30d: 2200, newSignups: 50,
-    apiCalls: { total: 50000, claude: 30000, chatgpt: 20000, cost: 900 },
-    features: { cvParsing: 45, jdParsing: 38, transcription: 22, research: 18, references: 12 },
-    uptime: 99.95, loadTime: 1.2, errorRate: 0.02,
-    feedback: { total: 250, bugs: 80, requests: 120, general: 50, satisfaction: 4.5 },
-    geo: [{ country: 'Germany', pct: 45, count: 1125 }, { country: 'UK', pct: 20, count: 500 }, { country: 'France', pct: 12, count: 300 }, { country: 'Netherlands', pct: 9, count: 225 }, { country: 'Other', pct: 14, count: 350 }],
-    roles: [{ role: 'IC', pct: 82 }, { role: 'Manager', pct: 18 }],
-    industries: [{ name: 'FinTech', pct: 30 }, { name: 'HR Tech', pct: 25 }, { name: 'SaaS', pct: 20 }, { name: 'Banking', pct: 15 }, { name: 'Other', pct: 10 }],
-  };
+  const apps = data.applications;
+  const byStatus = (s: AppStatus) => apps.filter(a => a.status === s).length;
+  const allStages = apps.flatMap(a => a.stages || []);
+  const upcomingStages = allStages.filter(s => s.status === 'upcoming');
+  const completedStages = allStages.filter(s => s.status === 'done' || s.status === 'passed');
+  const avgMatchPct = apps.filter(a => a.matchPercent !== undefined).reduce((acc, a) => acc + (a.matchPercent || 0), 0) / (apps.filter(a => a.matchPercent !== undefined).length || 1);
+  const appsWithCoverLetter = apps.filter(a => a.coverLetter && a.coverLetter.length > 50).length;
+  const appsWithJD = apps.filter(a => a.jdText && a.jdText.length > 50).length;
+  const storageBytes = JSON.stringify(data).length;
+  const storageKB = (storageBytes / 1024).toFixed(1);
 
   const sections = [
     { id: 'overview', label: '📊 Overview' },
-    { id: 'users', label: '👥 Users' },
-    { id: 'revenue', label: '💰 Revenue' },
-    { id: 'ai', label: '🤖 AI Usage' },
+    { id: 'data', label: '📋 My Data' },
     { id: 'system', label: '🖥️ System' },
-    { id: 'feedback', label: '💬 Feedback' },
   ];
 
-  const Bar = ({ pct, color = 'var(--accent)' }: { pct: number; color?: string }) => (
-    <div className="admin-bar-container">
-      <div className="admin-bar-track" style={{ flex: 1 }}>
-        <div className="admin-bar-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <span className="text-sm fw-600" style={{ minWidth: 35, textAlign: 'right' }}>{pct}%</span>
-    </div>
+  const Row = ({ label, value }: { label: string; value: string | number }) => (
+    <div className="admin-metric-row"><span className="admin-metric-label">{label}</span><span className="fw-600">{value}</span></div>
   );
 
   return (
@@ -1604,13 +1633,9 @@ function AdminDashboard({ data }: { data: AppData }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">Admin Dashboard</h1>
-          <p className="page-subtitle">Platform analytics — anonymized, no user data visible</p>
+          <p className="page-subtitle">Your real data — {data.user.email}</p>
         </div>
-        <span className="badge badge-offer">Admin Access</span>
-      </div>
-
-      <div className="alert alert-info mb-3">
-        📊 All metrics are aggregated and anonymized. No individual user data is visible here. Architecture prevents PII access.
+        <span className="badge badge-offer">Admin</span>
       </div>
 
       <div className="flex flex-wrap gap-1 mb-3">
@@ -1621,158 +1646,60 @@ function AdminDashboard({ data }: { data: AppData }) {
         <div>
           <div className="stat-grid">
             {[
-              { n: stats.totalUsers.toLocaleString(), l: 'Total Users' },
-              { n: stats.proUsers.toLocaleString(), l: 'Pro Subscribers' },
-              { n: `${stats.convRate}%`, l: 'Conversion Rate' },
-              { n: `€${stats.mrr.toLocaleString()}`, l: `MRR ↑${stats.mrrGrowth}%` },
+              { n: apps.length, l: 'Applications' },
+              { n: data.references.length, l: 'References' },
+              { n: data.offers.length, l: 'Offers' },
+              { n: allStages.length, l: 'Interview Stages' },
             ].map(s => <div key={s.l} className="stat-card"><div className="stat-number">{s.n}</div><div className="stat-label">{s.l}</div></div>)}
           </div>
-
           <div className="grid-2">
             <div className="card">
-              <h3 className="section-title mb-2">Active Users</h3>
-              {[
-                { label: 'Last 7 days', count: stats.activeUsers7d, pct: Math.round(stats.activeUsers7d / stats.totalUsers * 100) },
-                { label: 'Last 30 days', count: stats.activeUsers30d, pct: Math.round(stats.activeUsers30d / stats.totalUsers * 100) },
-                { label: 'New signups (month)', count: stats.newSignups, pct: Math.round(stats.newSignups / stats.totalUsers * 100) },
-              ].map(r => (
-                <div key={r.label} className="admin-metric-row">
-                  <span className="admin-metric-label">{r.label}</span>
-                  <div className="flex items-center gap-1">
-                    <span className="fw-600">{r.count.toLocaleString()}</span>
-                    <span className="text-muted text-xs">({r.pct}%)</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="card">
-              <h3 className="section-title mb-2">Feature Usage</h3>
-              {Object.entries(stats.features).map(([k, v]) => (
-                <div key={k} className="mb-2">
-                  <div className="flex justify-between mb-1" style={{ fontSize: '0.85rem' }}>
-                    <span>{k.replace(/([A-Z])/g, ' $1')}</span>
-                    <span className="fw-600">{v}%</span>
-                  </div>
-                  <Bar pct={v} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {section === 'users' && (
-        <div className="grid-2">
-          <div className="card">
-            <h3 className="section-title mb-2">Geographic Distribution</h3>
-            {stats.geo.map(g => (
-              <div key={g.country} className="mb-2">
-                <div className="flex justify-between mb-1" style={{ fontSize: '0.85rem' }}>
-                  <span>{g.country}</span><span>{g.count.toLocaleString()} users</span>
-                </div>
-                <Bar pct={g.pct} />
-              </div>
-            ))}
-          </div>
-          <div>
-            <div className="card mb-2">
-              <h3 className="section-title mb-2">Role Distribution</h3>
-              {stats.roles.map(r => (
-                <div key={r.role} className="mb-2">
-                  <div className="flex justify-between mb-1" style={{ fontSize: '0.85rem' }}><span>{r.role}</span><span>{r.pct}%</span></div>
-                  <Bar pct={r.pct} />
-                </div>
+              <h3 className="section-title mb-2">Applications by Status</h3>
+              {(['saved', 'applied', 'interview', 'offer', 'rejected', 'withdrawn'] as AppStatus[]).map(s => (
+                <Row key={s} label={STATUS_LABELS[s]} value={byStatus(s)} />
               ))}
             </div>
             <div className="card">
-              <h3 className="section-title mb-2">Industry Split</h3>
-              {stats.industries.map(i => (
-                <div key={i.name} className="mb-2">
-                  <div className="flex justify-between mb-1" style={{ fontSize: '0.85rem' }}><span>{i.name}</span><span>{i.pct}%</span></div>
-                  <Bar pct={i.pct} />
-                </div>
-              ))}
+              <h3 className="section-title mb-2">Interview Stages</h3>
+              <Row label="Total stages" value={allStages.length} />
+              <Row label="Upcoming" value={upcomingStages.length} />
+              <Row label="Completed" value={completedStages.length} />
+              <Row label="Passed" value={allStages.filter(s => s.status === 'passed').length} />
+              <Row label="Failed" value={allStages.filter(s => s.status === 'failed').length} />
+              {avgMatchPct > 0 && <Row label="Avg JD match %" value={`${Math.round(avgMatchPct)}%`} />}
             </div>
           </div>
         </div>
       )}
 
-      {section === 'revenue' && (
+      {section === 'data' && (
         <div className="grid-2">
           <div className="card">
-            <h3 className="section-title mb-2">Subscription Metrics</h3>
+            <h3 className="section-title mb-2">Profile Completeness</h3>
             {[
-              ['MRR', `€${stats.mrr.toLocaleString()}`],
-              ['ARR', `€${stats.arr.toLocaleString()}`],
-              ['MRR Growth', `+${stats.mrrGrowth}%`],
-              ['Pro Subscribers', stats.proUsers.toLocaleString()],
-              ['Monthly Pro (€9.99)', '300 users → €2,997'],
-              ['Annual Pro (€89.99)', '200 users → €1,500'],
-              ['Free → Pro Conversion', `${stats.convRate}%`],
-              ['Monthly Churn', `${stats.churnRate}%`],
-            ].map(([l, v]) => (
-              <div key={l as string} className="admin-metric-row"><span className="admin-metric-label">{l}</span><span className="admin-metric-value">{v}</span></div>
-            ))}
-          </div>
-          <div className="card">
-            <h3 className="section-title mb-2">Payment Health</h3>
-            {[
-              ['Successful charges', '495 (99%)'],
-              ['Failed charges', '5 (1%)'],
-              ['Refunds issued', '3'],
-              ['Refund rate', '0.6%'],
-              ['LTV (avg Pro user)', '€120 (12 months)'],
-              ['CAC (marketing)', '€40/subscriber'],
-              ['LTV:CAC ratio', '3:1'],
-            ].map(([l, v]) => (
-              <div key={l as string} className="admin-metric-row"><span className="admin-metric-label">{l}</span><span className="admin-metric-value">{v}</span></div>
-            ))}
-            <div className="mt-3">
-              <h4 className="fw-600 text-sm mb-1">Churn Cohort Retention</h4>
-              {[['Month 1', 98], ['Month 3', 95], ['Month 6', 88], ['Month 12', 75]].map(([m, v]) => (
-                <div key={m} className="mb-1">
-                  <div className="flex justify-between mb-1" style={{ fontSize: '0.82rem' }}><span>{m}</span><span>{v}%</span></div>
-                  <Bar pct={v as number} color="var(--success)" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {section === 'ai' && (
-        <div className="grid-2">
-          <div className="card">
-            <h3 className="section-title mb-2">API Usage This Month</h3>
-            <div className="admin-metric-row"><span>Total API Calls</span><span className="fw-600">{stats.apiCalls.total.toLocaleString()}</span></div>
-            <div className="admin-metric-row"><span>Claude calls</span><span>{stats.apiCalls.claude.toLocaleString()} (60%)</span></div>
-            <div className="admin-metric-row"><span>ChatGPT calls</span><span>{stats.apiCalls.chatgpt.toLocaleString()} (40%)</span></div>
-            <div className="admin-metric-row"><span>Total API Cost</span><span className="fw-600 text-danger">€{stats.apiCalls.cost}</span></div>
-            <div className="admin-metric-row"><span>Claude avg cost</span><span>€0.02/call</span></div>
-            <div className="admin-metric-row"><span>ChatGPT avg cost</span><span>€0.015/call</span></div>
-            <div className="admin-metric-row"><span>Cost per Pro user</span><span>€0.45/month</span></div>
-            <div className="admin-metric-row"><span>Profit margin (at €10 Pro)</span><span className="text-success fw-600">95%</span></div>
-          </div>
-          <div className="card">
-            <h3 className="section-title mb-2">Usage by Feature</h3>
-            {[
-              { name: 'CV Parsing', calls: 15000, pct: 30 },
-              { name: 'JD Parsing', calls: 12000, pct: 24 },
-              { name: 'Transcription', calls: 10000, pct: 20 },
-              { name: 'Company Research', calls: 8000, pct: 16 },
-              { name: 'Letter Analysis', calls: 5000, pct: 10 },
+              { label: 'Name', done: !!data.profile.name },
+              { label: 'Email', done: !!data.profile.email },
+              { label: 'Current Title', done: !!data.profile.currentTitle },
+              { label: 'Location', done: !!data.profile.location },
+              { label: 'LinkedIn', done: !!data.profile.linkedin },
+              { label: 'Summary', done: !!data.profile.summary },
+              { label: 'Skills', done: data.profile.skills.length > 0 },
+              { label: 'Languages', done: data.profile.languages.length > 0 },
             ].map(f => (
-              <div key={f.name} className="mb-2">
-                <div className="flex justify-between mb-1" style={{ fontSize: '0.85rem' }}>
-                  <span>{f.name}</span><span>{f.calls.toLocaleString()} calls</span>
-                </div>
-                <Bar pct={f.pct} />
+              <div key={f.label} className="admin-metric-row">
+                <span>{f.label}</span>
+                <span style={{ color: f.done ? 'var(--success)' : 'var(--danger)' }}>{f.done ? '✅' : '⬜'}</span>
               </div>
             ))}
-            <div className="alert alert-info mt-3" style={{ fontSize: '0.82rem' }}>
-              AI Provider setting: Claude (default) / ChatGPT / Auto / Fallback
-            </div>
+          </div>
+          <div className="card">
+            <h3 className="section-title mb-2">Application Quality</h3>
+            <Row label="With cover letter" value={appsWithCoverLetter} />
+            <Row label="With JD pasted" value={appsWithJD} />
+            <Row label="With skills match" value={apps.filter(a => (a.matchedSkills || []).length > 0).length} />
+            <Row label="With salary range" value={apps.filter(a => a.salary?.min).length} />
+            <Row label="With company research" value={apps.filter(a => a.companyDescription).length} />
+            <Row label="With interview stages" value={apps.filter(a => (a.stages || []).length > 0).length} />
           </div>
         </div>
       )}
@@ -1780,84 +1707,25 @@ function AdminDashboard({ data }: { data: AppData }) {
       {section === 'system' && (
         <div className="grid-2">
           <div className="card">
-            <h3 className="section-title mb-2">System Health</h3>
-            {[
-              { label: 'App Uptime (30d)', value: `${stats.uptime}%`, ok: true },
-              { label: 'Avg Page Load', value: `${stats.loadTime}s`, ok: true },
-              { label: 'API Response Time', value: '200ms', ok: true },
-              { label: 'Error Rate', value: `${stats.errorRate}%`, ok: true },
-              { label: 'DB Query Avg', value: '50ms', ok: true },
-              { label: 'DB Connections', value: '10/100', ok: true },
-            ].map(r => (
-              <div key={r.label} className="admin-metric-row">
-                <span><span className={`health-dot ${r.ok ? 'green' : 'red'}`} />{r.label}</span>
-                <span className="fw-600">{r.value}</span>
-              </div>
-            ))}
+            <h3 className="section-title mb-2">Local Storage</h3>
+            <Row label="Data size" value={`${storageKB} KB`} />
+            <Row label="Applications" value={apps.length} />
+            <Row label="References" value={data.references.length} />
+            <Row label="Offers" value={data.offers.length} />
+            <Row label="Storage key" value="cc-v3" />
+            <Row label="Account tier" value={data.user.isPro ? 'Pro' : 'Free'} />
           </div>
           <div className="card">
-            <h3 className="section-title mb-2">Storage & Limits</h3>
-            {[
-              ['Total Data Stored', '50 GB'],
-              ['User Profiles', '2 GB'],
-              ['Interview Recordings', '30 GB'],
-              ['Documents', '10 GB'],
-              ['Storage Cost/mo', '€10'],
-              ['Claude API Limit', '100K/mo (30K used)'],
-              ['Supabase Reads', '500K/mo (100K used)'],
-            ].map(([l, v]) => (
-              <div key={l as string} className="admin-metric-row"><span className="admin-metric-label">{l}</span><span>{v}</span></div>
-            ))}
+            <h3 className="section-title mb-2">App Info</h3>
+            <Row label="Version" value="3.0.0" />
+            <Row label="Stack" value="React + TypeScript" />
+            <Row label="Hosting" value="Vercel (static)" />
+            <Row label="AI" value="Claude (Anthropic)" />
+            <Row label="Data storage" value="localStorage" />
+            <Row label="Admin email" value={ADMIN_EMAIL} />
           </div>
         </div>
       )}
-
-      {section === 'feedback' && (
-        <div className="grid-2">
-          <div className="card">
-            <h3 className="section-title mb-2">Feedback Summary</h3>
-            {[
-              ['Total Submissions', stats.feedback.total],
-              ['Bug Reports', stats.feedback.bugs],
-              ['Feature Requests', stats.feedback.requests],
-              ['General Feedback', stats.feedback.general],
-              ['Satisfaction Score', `${stats.feedback.satisfaction}/5.0`],
-            ].map(([l, v]) => (
-              <div key={l as string} className="admin-metric-row"><span className="admin-metric-label">{l}</span><span className="fw-600">{v}</span></div>
-            ))}
-            <div className="mt-3">
-              <h4 className="fw-600 text-sm mb-1">Bug Severity</h4>
-              {[['Critical', 5, 'var(--danger)'], ['High', 15, 'var(--warning)'], ['Medium', 40, 'var(--info)'], ['Low', 190, '#999']].map(([s, c, col]) => (
-                <div key={s as string} className="admin-metric-row" style={{ fontSize: '0.85rem' }}>
-                  <span style={{ color: col as string }}>{s}</span><span>{c} bugs</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="card">
-            <h3 className="section-title mb-2">Top Feature Requests</h3>
-            {[
-              { name: 'Mobile App', count: 45, pct: 37 },
-              { name: 'Calendar Integration', count: 25, pct: 21 },
-              { name: 'Slack Notifications', count: 20, pct: 17 },
-              { name: 'LinkedIn Sync', count: 18, pct: 15 },
-              { name: 'Export to PDF', count: 12, pct: 10 },
-            ].map(f => (
-              <div key={f.name} className="mb-2">
-                <div className="flex justify-between mb-1" style={{ fontSize: '0.85rem' }}><span>{f.name}</span><span>{f.count} requests</span></div>
-                <Bar pct={f.pct} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="card mt-3" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
-        <h4 className="fw-600 mb-1">🔒 Privacy Architecture</h4>
-        <p style={{ fontSize: '0.85rem', color: '#555' }}>
-          Admin dashboard shows only aggregated, anonymized metrics. Individual user data (names, emails, applications, CVs, notes, salary info, interview recordings) is architecturally inaccessible here. All metrics are counts and percentages only.
-        </p>
-      </div>
     </div>
   );
 }

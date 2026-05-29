@@ -31,6 +31,7 @@ export interface Profile {
   steuernummer?: string;
   ustId?: string;
   krankenkasse?: string;
+  krankenkasseMitgliedsnummer?: string;
   sozialversicherungsnummer?: string;
 }
 
