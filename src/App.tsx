@@ -976,6 +976,8 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
   const [viewPdf, setViewPdf] = useState<Reference | null>(null);
   const blankForm = { name: '', title: '', company: '', email: '', phone: '', relationship: '', grade: '' as RefGrade | '', notes: '', letterText: '', languageOfLetter: 'en', employmentFrom: '', employmentTo: '', companyGrade: '' };
   const [form, setForm] = useState(blankForm);
+  const [editing, setEditing] = useState<Reference | null>(null);
+  const [editForm, setEditForm] = useState(blankForm);
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1028,6 +1030,45 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
     if (confirm('Delete this reference?')) onUpdate({ ...data, references: data.references.filter(r => r.id !== id) });
   };
 
+  const saveEdit = () => {
+    if (!editing || !editForm.name) return;
+    const { employmentFrom, employmentTo, companyGrade, ...rest } = editForm;
+    const updated: Reference = {
+      ...editing,
+      ...rest,
+      grade: editForm.grade as RefGrade || undefined,
+      ...(employmentFrom ? { employmentFrom } : {}),
+      ...(employmentTo ? { employmentTo } : {}),
+      ...(companyGrade ? { companyGrade } : {}),
+    };
+    onUpdate({ ...data, references: data.references.map(r => r.id === editing.id ? updated : r) });
+    setEditing(null);
+  };
+
+  const exportRefSummary = () => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const rows = data.references.map(r => `
+      <tr>
+        <td><strong>${r.name}</strong><br/><span style="color:#666;font-size:0.9em">${r.title || ''}</span></td>
+        <td>${r.company || '—'}</td>
+        <td>${r.employmentFrom || '—'} → ${r.employmentTo || '—'}</td>
+        <td>${r.companyGrade || '—'}</td>
+        <td>${r.grade ? r.grade + (r.sentiment ? ' / ' + r.sentiment : '') : (r.sentiment || '—')}</td>
+        <td>${r.email || '—'}<br/>${r.phone || ''}</td>
+      </tr>`).join('');
+    win.document.write(`<!DOCTYPE html><html><head><title>References — ${data.profile.name || 'Export'}</title>
+    <style>body{font-family:Arial,sans-serif;padding:32px;color:#111}h1{font-size:1.4rem;margin-bottom:4px}p{color:#666;font-size:0.9rem;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:0.9rem}th{background:#f0f0f0;text-align:left;padding:8px 10px;border-bottom:2px solid #ddd}td{padding:8px 10px;border-bottom:1px solid #eee;vertical-align:top}@media print{button{display:none}}</style>
+    </head><body>
+    <h1>Professional References — ${data.profile.name || ''}</h1>
+    <p>Generated ${new Date().toLocaleDateString('en-GB')} · ${data.references.length} reference${data.references.length !== 1 ? 's' : ''}</p>
+    <table><thead><tr><th>Name</th><th>Company</th><th>Period</th><th>Company Rating</th><th>Grade</th><th>Contact</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <br/><button onclick="window.print()">🖨️ Print / Save as PDF</button>
+    </body></html>`);
+    win.document.close();
+  };
+
   const analyseRef = async (ref: Reference) => {
     if (!ref.letterText && !ref.letterPdf) return;
     setAnalyseId(ref.id); setAnalysing(true);
@@ -1062,7 +1103,10 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
     <div>
       <div className="page-header">
         <div><h1 className="page-title">References</h1><p className="page-subtitle">Manage your professional references and letters</p></div>
-        <button className="btn" onClick={() => setShowAdd(true)} disabled={atLimit}>+ Add Reference</button>
+        <div className="flex gap-2 items-center">
+          <button className="btn btn-outline" onClick={exportRefSummary}>Export Summary</button>
+          <button className="btn" onClick={() => setShowAdd(true)} disabled={atLimit}>+ Add Reference</button>
+        </div>
       </div>
 
       {atLimit && <div className="pro-gate mb-3"><div className="pro-gate-title">Reference limit reached</div><div className="pro-gate-text">Free accounts can store up to {freeLimit} references. Upgrade to Pro for unlimited references.</div></div>}
@@ -1090,6 +1134,7 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
                       {analysing && analyseId === ref.id ? '…' : '🤖 Analyse'}
                     </button>
                   )}
+                  <button className="btn btn-sm btn-outline" onClick={e => { e.stopPropagation(); setEditing(ref); setEditForm({ name: ref.name, title: ref.title||'', company: ref.company||'', email: ref.email||'', phone: ref.phone||'', relationship: ref.relationship||'', grade: ref.grade||'', notes: ref.notes||'', letterText: ref.letterText||'', languageOfLetter: ref.languageOfLetter||'en', employmentFrom: ref.employmentFrom||'', employmentTo: ref.employmentTo||'', companyGrade: ref.companyGrade||'' }); }}>Edit</button>
                   <button className="btn btn-sm btn-danger" style={{ fontSize: '0.75rem' }} onClick={e => { e.stopPropagation(); deleteRef(ref.id); }}>Delete</button>
                 </div>
               </div>
@@ -1145,6 +1190,47 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
         </div>
       </Modal>
 
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit Reference">
+        <div className="form-row">
+          <div className="form-group"><label>Referee Name *</label><input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} /></div>
+          <div className="form-group"><label>Title / Role</label><input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Company</label><input value={editForm.company} onChange={e => setEditForm(p => ({ ...p, company: e.target.value }))} /></div>
+          <div className="form-group"><label>Relationship</label><input value={editForm.relationship} onChange={e => setEditForm(p => ({ ...p, relationship: e.target.value }))} placeholder="e.g. Former Manager" /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Employed From</label><input value={editForm.employmentFrom} onChange={e => setEditForm(p => ({ ...p, employmentFrom: e.target.value }))} placeholder="e.g. Jan 2020" /></div>
+          <div className="form-group"><label>Employed To</label><input value={editForm.employmentTo} onChange={e => setEditForm(p => ({ ...p, employmentTo: e.target.value }))} placeholder="e.g. Dec 2023" /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Company Rating in Letter</label><input value={editForm.companyGrade} onChange={e => setEditForm(p => ({ ...p, companyGrade: e.target.value }))} placeholder='e.g. "sehr gut", "outstanding"' /></div>
+          <div className="form-group"><label>Your Grade</label>
+            <select value={editForm.grade} onChange={e => setEditForm(p => ({ ...p, grade: e.target.value as RefGrade | '' }))}>
+              <option value="">Not graded</option>
+              {(['A', 'B', 'C', 'D', 'E', 'F'] as RefGrade[]).map(g => <option key={g} value={g}>{g} — {GRADE_LABELS[g]}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Email</label><input type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} /></div>
+          <div className="form-group"><label>Phone</label><input value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Letter Language</label>
+            <select value={editForm.languageOfLetter} onChange={e => setEditForm(p => ({ ...p, languageOfLetter: e.target.value }))}>
+              <option value="en">English</option><option value="de">German</option><option value="fr">French</option><option value="nl">Dutch</option><option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div className="form-group"><label>Letter Text</label><textarea rows={3} value={editForm.letterText} onChange={e => setEditForm(p => ({ ...p, letterText: e.target.value }))} /></div>
+        <div className="form-group"><label>Notes</label><textarea rows={2} value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} /></div>
+        <div className="flex gap-1 justify-between mt-2">
+          <button className="btn btn-outline" onClick={() => setEditing(null)}>Cancel</button>
+          <button className="btn" onClick={saveEdit}>Save Changes</button>
+        </div>
+      </Modal>
+
       {selected && (
         <Modal open onClose={() => setSelected(null)} title={selected.name}>
           <div className="mb-2">
@@ -1175,7 +1261,10 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
             </div>
           )}
           {selected.notes && <div className="mt-2"><p className="fw-600 text-sm mb-1">Notes:</p><p style={{ fontSize: '0.9rem' }}>{selected.notes}</p></div>}
-          <button className="btn btn-outline mt-2" onClick={() => setSelected(null)}>Close</button>
+          <div className="flex gap-1 mt-2">
+            <button className="btn btn-outline" onClick={() => { const ref = selected; setSelected(null); setEditing(ref); setEditForm({ name: ref.name, title: ref.title||'', company: ref.company||'', email: ref.email||'', phone: ref.phone||'', relationship: ref.relationship||'', grade: ref.grade||'', notes: ref.notes||'', letterText: ref.letterText||'', languageOfLetter: ref.languageOfLetter||'en', employmentFrom: ref.employmentFrom||'', employmentTo: ref.employmentTo||'', companyGrade: ref.companyGrade||'' }); }}>Edit</button>
+            <button className="btn btn-outline" onClick={() => setSelected(null)}>Close</button>
+          </div>
         </Modal>
       )}
 
@@ -2052,6 +2141,7 @@ function OfferComparePage({ data, onUpdate, isPro }: { data: AppData; onUpdate: 
   const freeLimit = PRO_LIMITS.offers;
   const atLimit = !isPro && data.offers.length >= freeLimit;
   const [showAdd, setShowAdd] = useState(false);
+  const [editOffer, setEditOffer] = useState<Offer | null>(null);
   const emptyOffer = (): Offer => ({
     id: Date.now().toString(),
     applicationId: '',
@@ -2074,6 +2164,7 @@ function OfferComparePage({ data, onUpdate, isPro }: { data: AppData; onUpdate: 
     rating: 0,
   });
   const [form, setForm] = useState<Offer>(emptyOffer());
+  const [editForm2, setEditForm2] = useState<Offer>(emptyOffer());
 
   const fmt = (n: number) => n ? `€${n.toLocaleString('de-DE')}` : '—';
   const calcNet = (gross: number) => {
@@ -2091,6 +2182,12 @@ function OfferComparePage({ data, onUpdate, isPro }: { data: AppData; onUpdate: 
 
   const deleteOffer = (id: string) => {
     if (confirm('Remove this offer?')) onUpdate({ ...data, offers: data.offers.filter(o => o.id !== id) });
+  };
+
+  const saveOffer = () => {
+    if (!editOffer) return;
+    onUpdate({ ...data, offers: data.offers.map(o => o.id === editOffer.id ? { ...editForm2, id: editOffer.id } : o) });
+    setEditOffer(null);
   };
 
   const best = (field: keyof Offer, higher = true): string | null => {
@@ -2213,12 +2310,61 @@ function OfferComparePage({ data, onUpdate, isPro }: { data: AppData; onUpdate: 
                   {offer.id === bestRating && <span style={{ fontSize: '0.75rem', color: 'var(--success)' }}>My favourite 🏆</span>}
                 </div>
                 {offer.notes && <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.75rem', fontStyle: 'italic' }}>{offer.notes}</p>}
-                <button className="btn btn-sm btn-danger mt-2" onClick={() => deleteOffer(offer.id)}>Remove</button>
+                <div className="flex gap-1 mt-2">
+                  <button className="btn btn-sm btn-outline" onClick={() => { setEditOffer(offer); setEditForm2({...offer}); }}>Edit</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => deleteOffer(offer.id)}>Remove</button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Modal open={!!editOffer} onClose={() => setEditOffer(null)} title="Edit Offer" size="modal-lg">
+        <div className="form-row">
+          <div className="form-group"><label>Company *</label><input value={editForm2.company} onChange={e => setEditForm2(p => ({ ...p, company: e.target.value }))} /></div>
+          <div className="form-group"><label>Role *</label><input value={editForm2.role} onChange={e => setEditForm2(p => ({ ...p, role: e.target.value }))} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Contract Type</label>
+            <select value={editForm2.contractType} onChange={e => setEditForm2(p => ({ ...p, contractType: e.target.value as Offer['contractType'] }))}>
+              <option value="full-time">Full-time</option>
+              <option value="part-time">Part-time</option>
+              <option value="freelance">Freelance</option>
+              <option value="fixed-term">Fixed-term</option>
+            </select>
+          </div>
+          <div className="form-group"><label>Work Setup</label>
+            <select value={editForm2.workSetup} onChange={e => setEditForm2(p => ({ ...p, workSetup: e.target.value as Offer['workSetup'] }))}>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">On-site</option>
+            </select>
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Gross Annual Salary (€)</label><input type="number" value={editForm2.grossSalary || ''} onChange={e => setEditForm2(p => ({ ...p, grossSalary: Number(e.target.value) }))} /></div>
+          <div className="form-group"><label>Bonus (%)</label><input type="number" value={editForm2.bonus || ''} onChange={e => setEditForm2(p => ({ ...p, bonus: Number(e.target.value) }))} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Vacation Days</label><input type="number" value={editForm2.vacationDays || ''} onChange={e => setEditForm2(p => ({ ...p, vacationDays: Number(e.target.value) }))} /></div>
+          <div className="form-group"><label>Learning Budget (€)</label><input type="number" value={editForm2.learningBudget || ''} onChange={e => setEditForm2(p => ({ ...p, learningBudget: Number(e.target.value) }))} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Notice Period</label><input value={editForm2.noticePeriod} onChange={e => setEditForm2(p => ({ ...p, noticePeriod: e.target.value }))} placeholder="e.g. 1 month" /></div>
+          <div className="form-group"><label>Probation (months)</label><input type="number" value={editForm2.probationMonths || ''} onChange={e => setEditForm2(p => ({ ...p, probationMonths: Number(e.target.value) }))} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Equity / ESOP</label><input value={editForm2.equity} onChange={e => setEditForm2(p => ({ ...p, equity: e.target.value }))} placeholder="e.g. 0.5% vested over 4 years" /></div>
+          <div className="form-group"><label>Start Date</label><input type="date" value={editForm2.startDate} onChange={e => setEditForm2(p => ({ ...p, startDate: e.target.value }))} /></div>
+        </div>
+        <div className="form-group"><label>Benefits (comma-separated)</label><input value={editForm2.benefits.join(', ')} onChange={e => setEditForm2(p => ({ ...p, benefits: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))} placeholder="Health insurance, Gym, Remote allowance" /></div>
+        <div className="form-group"><label>Notes</label><textarea rows={3} value={editForm2.notes} onChange={e => setEditForm2(p => ({ ...p, notes: e.target.value }))} /></div>
+        <div className="flex gap-1 justify-between mt-2">
+          <button className="btn btn-outline" onClick={() => setEditOffer(null)}>Cancel</button>
+          <button className="btn" onClick={saveOffer}>Save Changes</button>
+        </div>
+      </Modal>
 
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Offer" size="modal-lg">
         <div className="form-row">
