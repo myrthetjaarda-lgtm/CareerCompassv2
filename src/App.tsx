@@ -806,6 +806,16 @@ function CVUploadPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: 
               {Boolean(result.skills) && <div className="mt-1"><strong>Skills:</strong> {(result.skills as string[]).join(', ')}</div>}
               {Boolean(result.languages) && <div className="mt-1"><strong>Languages:</strong> {(result.languages as { language: string; level: string }[]).map(l => `${l.language} (${l.level})`).join(', ')}</div>}
               {Boolean(result.certifications) && (result.certifications as {name:string}[]).length > 0 && <div className="mt-1"><strong>Certifications:</strong> {(result.certifications as {name:string}[]).map(c => c.name).join(', ')}</div>}
+              {Boolean(result.workExperience) && (result.workExperience as {company:string;role:string;dates:string}[]).length > 0 && (
+                <div className="mt-2">
+                  <strong>Work History:</strong>
+                  <ul style={{ margin: '4px 0 0 16px', fontSize: '0.88rem' }}>
+                    {(result.workExperience as {company:string;role:string;dates:string}[]).map((w, i) => (
+                      <li key={i}><strong>{w.company}</strong> — {w.role} <span className="text-muted">({w.dates})</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <div className="flex gap-1 mt-2">
               <button className="btn" onClick={applyToProfile}>Apply to Profile</button>
@@ -961,26 +971,53 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
   const [analyseId, setAnalyseId] = useState('');
   const [analysing, setAnalysing] = useState(false);
   const [pdfFile, setPdfFile] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [pdfAnalysing, setPdfAnalysing] = useState(false);
   const [viewPdf, setViewPdf] = useState<Reference | null>(null);
-  const [form, setForm] = useState({ name: '', title: '', company: '', email: '', phone: '', relationship: '', grade: '' as RefGrade | '', notes: '', letterText: '', languageOfLetter: 'en' });
+  const blankForm = { name: '', title: '', company: '', email: '', phone: '', relationship: '', grade: '' as RefGrade | '', notes: '', letterText: '', languageOfLetter: 'en', employmentFrom: '', employmentTo: '', companyGrade: '' };
+  const [form, setForm] = useState(blankForm);
 
-  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || file.type !== 'application/pdf') { alert('Please select a PDF file.'); return; }
     if (file.size > 5 * 1024 * 1024) { alert('PDF must be under 5 MB.'); return; }
     const reader = new FileReader();
-    reader.onload = ev => setPdfFile({ dataUrl: ev.target!.result as string, name: file.name });
+    reader.onload = async ev => {
+      const dataUrl = ev.target!.result as string;
+      setPdfFile({ dataUrl, name: file.name });
+      // Auto-analyse PDF to extract company, dates, grade
+      setPdfAnalysing(true);
+      try {
+        const base64 = dataUrl.split(',')[1];
+        const res = await fetch('/api/analyse-letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ letterPdfBase64: base64 }) });
+        if (res.ok) {
+          const result = await res.json();
+          setForm(prev => ({
+            ...prev,
+            company: prev.company || result.company || '',
+            grade: (result.grade as RefGrade) || prev.grade,
+            employmentFrom: result.employmentFrom || prev.employmentFrom,
+            employmentTo: result.employmentTo || prev.employmentTo,
+            companyGrade: result.companyGrade || prev.companyGrade,
+          }));
+        }
+      } catch { /* silent — user can fill manually */ }
+      finally { setPdfAnalysing(false); }
+    };
     reader.readAsDataURL(file);
   };
 
   const addRef = () => {
     if (!form.name) return;
+    const { employmentFrom, employmentTo, companyGrade, ...rest } = form;
     const ref: Reference = {
-      ...form, id: Date.now().toString(), grade: form.grade as RefGrade || undefined,
+      ...rest, id: Date.now().toString(), grade: form.grade as RefGrade || undefined,
+      ...(employmentFrom ? { employmentFrom } : {}),
+      ...(employmentTo ? { employmentTo } : {}),
+      ...(companyGrade ? { companyGrade } : {}),
       ...(pdfFile ? { letterPdf: pdfFile.dataUrl, letterPdfName: pdfFile.name } : {}),
     };
     onUpdate({ ...data, references: [...data.references, ref] });
-    setForm({ name: '', title: '', company: '', email: '', phone: '', relationship: '', grade: '', notes: '', letterText: '', languageOfLetter: 'en' });
+    setForm(blankForm);
     setPdfFile(null);
     setShowAdd(false);
   };
@@ -990,15 +1027,27 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
   };
 
   const analyseRef = async (ref: Reference) => {
-    if (!isPro || !ref.letterText) return;
+    if (!ref.letterText && !ref.letterPdf) return;
     setAnalyseId(ref.id); setAnalysing(true);
     try {
-      const res = await fetch('/api/analyse-letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ letterText: ref.letterText }) });
+      const body = ref.letterPdf
+        ? { letterPdfBase64: ref.letterPdf.split(',')[1] }
+        : { letterText: ref.letterText };
+      const res = await fetch('/api/analyse-letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error();
       const result = await res.json();
-      onUpdate({ ...data, references: data.references.map(r => r.id === ref.id ? { ...r, grade: result.grade, sentiment: result.sentiment, strengthRating: result.strengthRating } : r) });
+      onUpdate({ ...data, references: data.references.map(r => r.id === ref.id ? {
+        ...r,
+        grade: result.grade || r.grade,
+        sentiment: result.sentiment || r.sentiment,
+        strengthRating: result.strengthRating || r.strengthRating,
+        company: r.company || result.company || r.company,
+        employmentFrom: r.employmentFrom || result.employmentFrom,
+        employmentTo: r.employmentTo || result.employmentTo,
+        companyGrade: r.companyGrade || result.companyGrade,
+      } : r) });
     } catch {
-      alert('Analysis failed. Check API key is configured.');
+      alert('Analysis failed. Check ANTHROPIC_API_KEY is configured in Vercel.');
     } finally {
       setAnalyseId(''); setAnalysing(false);
     }
@@ -1026,11 +1075,15 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
                   {ref.grade && <GradeBadge grade={ref.grade} />}
                 </div>
                 <div className="text-muted text-sm">{ref.title} @ {ref.company}</div>
+                {(ref.employmentFrom || ref.employmentTo) && (
+                  <div className="text-xs text-muted mt-1">📅 {ref.employmentFrom || '?'} → {ref.employmentTo || 'present'}</div>
+                )}
+                {ref.companyGrade && <div className="text-xs mt-1">Company rating: <strong>{ref.companyGrade}</strong></div>}
                 {ref.email && <div className="text-xs text-muted mt-1">{ref.email}</div>}
                 {ref.sentiment && <div className="mt-1"><span className={`tag tag-${ref.sentiment === 'positive' ? 'green' : ref.sentiment === 'neutral' ? 'gray' : 'red'}`}>{ref.sentiment}</span></div>}
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {ref.letterPdf && <button className="btn btn-sm btn-outline" onClick={e => { e.stopPropagation(); setViewPdf(ref); }}>📄 View PDF</button>}
-                  {ref.letterText && isPro && (
+                  {(ref.letterText || ref.letterPdf) && (
                     <button className="btn btn-sm btn-outline" onClick={e => { e.stopPropagation(); analyseRef(ref); }} disabled={analysing && analyseId === ref.id}>
                       {analysing && analyseId === ref.id ? '…' : '🤖 Analyse'}
                     </button>
@@ -1042,61 +1095,83 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
           </div>
       }
 
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Reference">
+      <Modal open={showAdd} onClose={() => { setShowAdd(false); setPdfFile(null); setForm(blankForm); }} title="Add Reference">
+        <div className="form-group" style={{ background: '#f0f7ff', borderRadius: 8, padding: '12px', marginBottom: 12 }}>
+          <label style={{ fontWeight: 600 }}>📄 Upload Signed Reference Letter (PDF)</label>
+          <input type="file" accept="application/pdf" onChange={handlePdfUpload} style={{ fontSize: '0.9rem', display: 'block', marginTop: 6 }} />
+          {pdfAnalysing && <div className="text-xs mt-2" style={{ color: '#2563eb' }}>🤖 AI is reading the letter and filling in the fields…</div>}
+          {pdfFile && !pdfAnalysing && <div className="mt-1 flex items-center gap-1"><span className="tag tag-green">✓ {pdfFile.name}</span><button className="btn btn-sm btn-outline" style={{ padding: '2px 8px' }} onClick={() => setPdfFile(null)}>Remove</button></div>}
+          <p className="text-xs text-muted mt-1">AI will automatically extract company, employment dates and rating. Max 5 MB.</p>
+        </div>
         <div className="form-row">
-          <div className="form-group"><label>Name *</label><input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
-          <div className="form-group"><label>Title</label><input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></div>
+          <div className="form-group"><label>Referee Name *</label><input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
+          <div className="form-group"><label>Title / Role</label><input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></div>
         </div>
         <div className="form-row">
           <div className="form-group"><label>Company</label><input value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} /></div>
           <div className="form-group"><label>Relationship</label><input value={form.relationship} onChange={e => setForm(p => ({ ...p, relationship: e.target.value }))} placeholder="e.g. Former Manager" /></div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></div>
-          <div className="form-group"><label>Phone</label><input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></div>
+          <div className="form-group"><label>Employed From</label><input value={form.employmentFrom} onChange={e => setForm(p => ({ ...p, employmentFrom: e.target.value }))} placeholder="e.g. Jan 2020" /></div>
+          <div className="form-group"><label>Employed To</label><input value={form.employmentTo} onChange={e => setForm(p => ({ ...p, employmentTo: e.target.value }))} placeholder="e.g. Dec 2023" /></div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label>Grade (optional)</label>
+          <div className="form-group"><label>Company Rating in Letter</label><input value={form.companyGrade} onChange={e => setForm(p => ({ ...p, companyGrade: e.target.value }))} placeholder='e.g. "sehr gut", "outstanding"' /></div>
+          <div className="form-group"><label>Your Grade</label>
             <select value={form.grade} onChange={e => setForm(p => ({ ...p, grade: e.target.value as RefGrade | '' }))}>
               <option value="">Not graded</option>
               {(['A', 'B', 'C', 'D', 'E', 'F'] as RefGrade[]).map(g => <option key={g} value={g}>{g} — {GRADE_LABELS[g]}</option>)}
             </select>
           </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></div>
+          <div className="form-group"><label>Phone</label><input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></div>
+        </div>
+        <div className="form-row">
           <div className="form-group"><label>Letter Language</label>
             <select value={form.languageOfLetter} onChange={e => setForm(p => ({ ...p, languageOfLetter: e.target.value }))}>
               <option value="en">English</option><option value="de">German</option><option value="fr">French</option><option value="nl">Dutch</option><option value="other">Other</option>
             </select>
           </div>
         </div>
-        <div className="form-group">
-          <label>Signed Reference Letter (PDF)</label>
-          <input type="file" accept="application/pdf" onChange={handlePdfUpload} style={{ fontSize: '0.9rem' }} />
-          {pdfFile && <div className="mt-1 flex items-center gap-1"><span className="tag tag-green">✓ {pdfFile.name}</span><button className="btn btn-sm btn-outline" style={{ padding: '2px 8px' }} onClick={() => setPdfFile(null)}>Remove</button></div>}
-          <p className="text-xs text-muted mt-1">Upload the signed PDF (max 5 MB). Stored locally in your browser.</p>
-        </div>
-        <div className="form-group"><label>Letter Text (for AI analysis — paste text from the letter)</label><textarea rows={4} value={form.letterText} onChange={e => setForm(p => ({ ...p, letterText: e.target.value }))} placeholder="Optional: paste the letter text here for AI sentiment analysis..." /></div>
+        <div className="form-group"><label>Letter Text (optional — for AI analysis without PDF)</label><textarea rows={3} value={form.letterText} onChange={e => setForm(p => ({ ...p, letterText: e.target.value }))} placeholder="Paste letter text here if not uploading PDF…" /></div>
         <div className="form-group"><label>Notes</label><textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} /></div>
         <div className="flex gap-1 justify-between mt-2">
-          <button className="btn btn-outline" onClick={() => { setShowAdd(false); setPdfFile(null); }}>Cancel</button>
-          <button className="btn" onClick={addRef}>Add Reference</button>
+          <button className="btn btn-outline" onClick={() => { setShowAdd(false); setPdfFile(null); setForm(blankForm); }}>Cancel</button>
+          <button className="btn" onClick={addRef} disabled={pdfAnalysing}>Add Reference</button>
         </div>
       </Modal>
 
       {selected && (
         <Modal open onClose={() => setSelected(null)} title={selected.name}>
-          <div><p><strong>Title:</strong> {selected.title}</p><p><strong>Company:</strong> {selected.company}</p><p><strong>Email:</strong> {selected.email}</p><p><strong>Phone:</strong> {selected.phone}</p><p><strong>Relationship:</strong> {selected.relationship}</p></div>
-          {selected.grade && <div className="mt-2"><GradeBadge grade={selected.grade} /></div>}
+          <div className="mb-2">
+            <p><strong>Title:</strong> {selected.title}</p>
+            <p><strong>Company:</strong> {selected.company}</p>
+            {(selected.employmentFrom || selected.employmentTo) && (
+              <p><strong>Employed:</strong> {selected.employmentFrom || '?'} → {selected.employmentTo || 'present'}</p>
+            )}
+            {selected.companyGrade && <p><strong>Company Rating:</strong> {selected.companyGrade}</p>}
+            <p><strong>Email:</strong> {selected.email}</p>
+            <p><strong>Phone:</strong> {selected.phone}</p>
+            <p><strong>Relationship:</strong> {selected.relationship}</p>
+          </div>
+          <div className="flex gap-1 flex-wrap mb-2">
+            {selected.grade && <GradeBadge grade={selected.grade} />}
+            {selected.sentiment && <span className={`tag tag-${selected.sentiment === 'positive' ? 'green' : selected.sentiment === 'neutral' ? 'gray' : 'red'}`}>{selected.sentiment}</span>}
+            {selected.strengthRating && <span className="tag tag-gray">Strength {selected.strengthRating}/10</span>}
+          </div>
           {selected.letterPdf && (
-            <div className="mt-2 p-2" style={{ background: '#f8f9fa', borderRadius: 8 }}>
+            <div className="mt-2 p-2" style={{ background: '#f0f7ff', borderRadius: 8 }}>
               <p className="fw-600 text-sm mb-1">📄 Signed Reference Letter</p>
               <p className="text-xs text-muted mb-1">{selected.letterPdfName}</p>
               <div className="flex gap-1">
                 <button className="btn btn-sm" onClick={() => setViewPdf(selected)}>View PDF</button>
                 <a className="btn btn-sm btn-outline" href={selected.letterPdf} download={selected.letterPdfName}>Download</a>
+                <button className="btn btn-sm btn-outline" onClick={() => analyseRef(selected)} disabled={analysing && analyseId === selected.id}>{analysing && analyseId === selected.id ? '…' : '🤖 Re-analyse'}</button>
               </div>
             </div>
           )}
-          {selected.letterText && <div className="mt-2"><p className="fw-600 text-sm mb-1">Letter Text:</p><p style={{ fontSize: '0.85rem', color: '#555', whiteSpace: 'pre-wrap' }}>{selected.letterText}</p></div>}
           {selected.notes && <div className="mt-2"><p className="fw-600 text-sm mb-1">Notes:</p><p style={{ fontSize: '0.9rem' }}>{selected.notes}</p></div>}
           <button className="btn btn-outline mt-2" onClick={() => setSelected(null)}>Close</button>
         </Modal>

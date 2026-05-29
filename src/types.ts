@@ -126,6 +126,9 @@ export interface Reference {
   letterText?: string;
   letterPdf?: string;
   letterPdfName?: string;
+  employmentFrom?: string;
+  employmentTo?: string;
+  companyGrade?: string;
   languageOfLetter?: string;
   usedForApplications?: string[];
 }
