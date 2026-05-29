@@ -726,7 +726,11 @@ function CVUploadPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: 
         body = JSON.stringify({ cvText: text, fileName: file.name });
       }
       const res = await fetch('/api/parse-cv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        if (res.status === 404) throw new Error('CV parsing service is not available. Please contact your admin to configure the API key.');
+        if (res.status === 500) throw new Error('CV parsing service error. Please ensure the ANTHROPIC_API_KEY is configured in Vercel.');
+        throw new Error(`Service error (${res.status}). Please try again later.`);
+      }
       const parsed = await res.json();
       setResult(parsed);
     } catch (e: unknown) {
@@ -830,7 +834,11 @@ function JDExtractPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d:
     setLoading(true); setError(''); setResult(null);
     try {
       const res = await fetch('/api/parse-jd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jdText, profileSkills: data.profile.skills }) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        if (res.status === 404) throw new Error('JD extraction service is not available. Please contact your admin to configure the API key.');
+        if (res.status === 500) throw new Error('JD extraction service error. Please ensure the ANTHROPIC_API_KEY is configured in Vercel.');
+        throw new Error(`Service error (${res.status}). Please try again later.`);
+      }
       setResult(await res.json());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Extraction failed');

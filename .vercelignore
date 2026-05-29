@@ -16,8 +16,6 @@ yarn.lock
 supabase_migration.sql
 public/.deployment
 public/version.txt
-api/
-package.json
 src/
 tsconfig.json
 vite.config.ts
