@@ -88,6 +88,19 @@ function Dashboard({ data, onNavigate }: { data: AppData; onNavigate: (p: Page) 
   const byStatus = (s: AppStatus) => apps.filter(a => a.status === s).length;
   const pipeline = apps.filter(a => !['rejected', 'withdrawn'].includes(a.status)).length;
   const recent = [...apps].sort((a, b) => b.dateAdded.localeCompare(a.dateAdded)).slice(0, 5);
+  const applied = byStatus('applied') + byStatus('interview') + byStatus('offer');
+  const responseRate = apps.length ? Math.round((applied / apps.length) * 100) : 0;
+
+  const now = new Date();
+  const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const upcomingInterviews = apps.flatMap(app =>
+    (app.stages || [])
+      .filter(s => s.status === 'upcoming' && s.date)
+      .map(s => ({ ...s, company: app.company, role: app.role }))
+  ).filter(s => {
+    const d = new Date(s.date);
+    return d >= now && d <= weekAhead;
+  }).sort((a, b) => a.date.localeCompare(b.date));
 
   const stages: { label: string; status: AppStatus; color: string }[] = [
     { label: 'Saved', status: 'saved', color: '#3b82f6' },
@@ -108,6 +121,7 @@ function Dashboard({ data, onNavigate }: { data: AppData; onNavigate: (p: Page) 
           { n: pipeline, l: 'Active Pipeline' },
           { n: byStatus('interview'), l: 'In Interview' },
           { n: byStatus('offer'), l: 'Offers' },
+          { n: `${responseRate}%`, l: 'Response Rate' },
         ].map(s => (
           <div key={s.l} className="stat-card">
             <div className="stat-number">{s.n}</div>
@@ -155,6 +169,23 @@ function Dashboard({ data, onNavigate }: { data: AppData; onNavigate: (p: Page) 
           </div>
         </div>
       </div>
+
+      {upcomingInterviews.length > 0 && (
+        <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--success)' }}>
+          <h3 className="section-title mb-2">🗓️ Upcoming Interviews This Week</h3>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {upcomingInterviews.map(s => (
+              <div key={s.id} className="flex justify-between items-center" style={{ padding: '0.6rem 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <div className="fw-600">{s.company} <span className="text-muted fw-400">— {s.role}</span></div>
+                  <div className="text-sm text-muted">{s.name || 'Interview'}{s.interviewers ? ` · ${s.interviewers}` : ''}</div>
+                </div>
+                <div className="text-sm fw-600" style={{ color: 'var(--success)', whiteSpace: 'nowrap' }}>{new Date(s.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {recent.length > 0 && (
         <div className="card">
@@ -271,10 +302,35 @@ function AppDetailModal({ app, onClose, onUpdate }: { app: Application; onClose:
 
       {tab === 2 && (
         <div>
-          <div className="form-group">
-            <label>Cover Letter</label>
-            <textarea rows={12} value={local.coverLetter || ''} onChange={e => update('coverLetter', e.target.value)} placeholder="Write your cover letter here..." />
+          <div className="flex justify-between items-center mb-2">
+            <label style={{ fontWeight: 600 }}>Cover Letter</label>
+            <button className="btn btn-sm btn-outline" onClick={() => {
+              if (local.coverLetter && !confirm('Replace existing cover letter with template?')) return;
+              const skills = (local.matchedSkills || []).slice(0, 3).join(', ');
+              const template = `Dear Hiring Manager,
+
+I am writing to express my strong interest in the ${local.role} position at ${local.company}. With my background in People Operations and HR, I am excited about the opportunity to contribute to your team.
+
+${local.companyDescription ? `I have been following ${local.company}'s work and am particularly drawn to your focus on ${local.companyMission || 'building a strong people-first culture'}.` : `${local.company} stands out to me as a company where I can make a meaningful impact.`}
+
+${skills ? `My experience aligns well with your requirements, particularly in: ${skills}.` : 'My experience spans across key areas of People Ops and HR, from talent acquisition to employee engagement and organisational development.'}
+
+${local.workSetup === 'remote' ? 'I am fully equipped and experienced working remotely, with strong communication and self-management skills.' : ''}
+
+I would welcome the opportunity to discuss how my background can support ${local.company}'s people strategy. I look forward to learning more about this role.
+
+Kind regards,
+[Your name]`;
+              update('coverLetter', template);
+            }}>📝 Generate Template</button>
           </div>
+          <textarea rows={14} value={local.coverLetter || ''} onChange={e => update('coverLetter', e.target.value)} placeholder="Write your cover letter here, or click 'Generate Template' for a starting point..." style={{ width: '100%' }} />
+          {local.coverLetter && (
+            <div className="flex gap-1 mt-2">
+              <button className="btn btn-sm btn-outline" onClick={() => { navigator.clipboard.writeText(local.coverLetter || ''); }}>📋 Copy</button>
+              <span className="text-xs text-muted" style={{ alignSelf: 'center' }}>{local.coverLetter.split(/\s+/).filter(Boolean).length} words</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -507,6 +563,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Application | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [form, setForm] = useState({ company: '', role: '', location: '', workSetup: 'hybrid' as Application['workSetup'], status: 'saved' as AppStatus, url: '' });
 
   const filtered = data.applications
@@ -533,7 +590,11 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
     <div>
       <div className="page-header">
         <div><h1 className="page-title">Applications</h1><p className="page-subtitle">Track your job applications ({data.applications.length} total)</p></div>
-        <button className="btn" onClick={() => setShowAdd(true)}>+ Add Application</button>
+        <div className="flex gap-1">
+          <button className={`btn btn-sm ${viewMode === 'list' ? '' : 'btn-outline'}`} onClick={() => setViewMode('list')}>☰ List</button>
+          <button className={`btn btn-sm ${viewMode === 'kanban' ? '' : 'btn-outline'}`} onClick={() => setViewMode('kanban')}>⊞ Board</button>
+          <button className="btn" onClick={() => setShowAdd(true)}>+ Add</button>
+        </div>
       </div>
 
       <div className="mb-3">
@@ -544,39 +605,66 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
           onChange={e => setSearch(e.target.value)}
           style={{ width: '100%', maxWidth: 400, padding: '0.65rem 1rem', border: '1px solid var(--border)', borderRadius: '8px', marginBottom: '0.75rem', fontSize: '0.9rem' }}
         />
-        <div className="flex flex-wrap gap-1">
-          {(['all', 'saved', 'applied', 'interview', 'offer', 'rejected'] as const).map(s => (
-            <button key={s} className={`btn btn-sm ${filter === s ? '' : 'btn-outline'}`} onClick={() => setFilter(s)}>
-              {s === 'all' ? `All (${data.applications.length})` : `${STATUS_LABELS[s as AppStatus]} (${data.applications.filter(a => a.status === s).length})`}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {filtered.length === 0
-        ? <div className="empty-state"><div className="empty-state-icon">📋</div><p className="empty-state-text">No applications {filter !== 'all' ? `with status "${filter}"` : 'yet'}</p></div>
-        : <div className="card-grid">
-            {filtered.map(app => (
-              <div key={app.id} className="app-card" onClick={() => setSelected(app)}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="app-card-company">{app.company}</span>
-                  <StatusBadge status={app.status} />
-                </div>
-                <div className="app-card-role">{app.role}</div>
-                <div className="app-card-meta">{app.location} • {app.workSetup} • {new Date(app.dateAdded).toLocaleDateString('en-GB')}</div>
-                {app.matchPercent !== undefined && (
-                  <div className="mt-2">
-                    <div className="progress-bar" style={{ height: '4px' }}>
-                      <div className="progress-fill" style={{ width: `${app.matchPercent}%`, background: app.matchPercent > 70 ? 'var(--success)' : 'var(--warning)' }} />
-                    </div>
-                    <span className="text-xs text-muted">{app.matchPercent}% skills match</span>
-                  </div>
-                )}
-                <button className="btn btn-sm btn-danger mt-2" style={{ fontSize: '0.75rem' }} onClick={e => { e.stopPropagation(); deleteApp(app.id); }}>Delete</button>
-              </div>
+        {viewMode === 'list' && (
+          <div className="flex flex-wrap gap-1">
+            {(['all', 'saved', 'applied', 'interview', 'offer', 'rejected'] as const).map(s => (
+              <button key={s} className={`btn btn-sm ${filter === s ? '' : 'btn-outline'}`} onClick={() => setFilter(s)}>
+                {s === 'all' ? `All (${data.applications.length})` : `${STATUS_LABELS[s as AppStatus]} (${data.applications.filter(a => a.status === s).length})`}
+              </button>
             ))}
           </div>
-      }
+        )}
+      </div>
+
+      {viewMode === 'kanban' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'start' }}>
+          {(['saved', 'applied', 'interview', 'offer', 'rejected', 'withdrawn'] as AppStatus[]).map(col => {
+            const colApps = data.applications.filter(a => a.status === col && (!search || a.company.toLowerCase().includes(search.toLowerCase()) || a.role.toLowerCase().includes(search.toLowerCase())));
+            return (
+              <div key={col} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.75rem' }}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="fw-600 text-sm">{STATUS_LABELS[col]}</span>
+                  <span style={{ background: 'var(--accent)', color: 'white', borderRadius: '10px', padding: '0 0.5rem', fontSize: '0.75rem' }}>{colApps.length}</span>
+                </div>
+                {colApps.length === 0
+                  ? <div className="text-xs text-muted" style={{ padding: '0.5rem 0' }}>Empty</div>
+                  : colApps.map(app => (
+                      <div key={app.id} className="app-card" style={{ marginBottom: '0.5rem', cursor: 'pointer' }} onClick={() => setSelected(app)}>
+                        <div className="fw-600 text-sm">{app.company}</div>
+                        <div className="text-xs text-muted">{app.role}</div>
+                        {app.matchPercent !== undefined && <div className="text-xs" style={{ color: 'var(--success)' }}>{app.matchPercent}% match</div>}
+                      </div>
+                    ))
+                }
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        filtered.length === 0
+          ? <div className="empty-state"><div className="empty-state-icon">📋</div><p className="empty-state-text">No applications {filter !== 'all' ? `with status "${filter}"` : 'yet'}</p></div>
+          : <div className="card-grid">
+              {filtered.map(app => (
+                <div key={app.id} className="app-card" onClick={() => setSelected(app)}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="app-card-company">{app.company}</span>
+                    <StatusBadge status={app.status} />
+                  </div>
+                  <div className="app-card-role">{app.role}</div>
+                  <div className="app-card-meta">{app.location} • {app.workSetup} • {new Date(app.dateAdded).toLocaleDateString('en-GB')}</div>
+                  {app.matchPercent !== undefined && (
+                    <div className="mt-2">
+                      <div className="progress-bar" style={{ height: '4px' }}>
+                        <div className="progress-fill" style={{ width: `${app.matchPercent}%`, background: app.matchPercent > 70 ? 'var(--success)' : 'var(--warning)' }} />
+                      </div>
+                      <span className="text-xs text-muted">{app.matchPercent}% skills match</span>
+                    </div>
+                  )}
+                  <button className="btn btn-sm btn-danger mt-2" style={{ fontSize: '0.75rem' }} onClick={e => { e.stopPropagation(); deleteApp(app.id); }}>Delete</button>
+                </div>
+              ))}
+            </div>
+      )}
 
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Application">
         <div className="form-row">
@@ -1316,6 +1404,23 @@ function ProfilePage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
   const [newSkill, setNewSkill] = useState('');
   const [newLang, setNewLang] = useState({ language: '', level: 'B2' });
 
+  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target?.result as string) as AppData;
+        if (!imported.applications || !imported.profile) { alert('Invalid backup file'); return; }
+        if (confirm(`Import backup? This will replace all current data.\n\nBackup contains:\n• ${imported.applications.length} applications\n• ${imported.references?.length || 0} references\n• ${imported.offers?.length || 0} offers`)) {
+          onUpdate({ ...DEFAULT_DATA, ...imported });
+        }
+      } catch { alert('Could not read file. Make sure it is a valid CareerCompass backup.'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const save = () => {
     onUpdate({ ...data, profile });
     setSaved(true);
@@ -1423,8 +1528,19 @@ function ProfilePage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
         </div>
       )}
 
-      <div className="flex justify-between" style={{ paddingTop: '0.5rem' }}>
-        <button className="btn btn-outline" onClick={() => exportData(data)}>📥 Export All Data</button>
+      <div className="card mb-3" style={{ borderLeft: '4px solid var(--accent)' }}>
+        <h3 className="section-title mb-2">Data & Backup</h3>
+        <p className="text-muted text-sm mb-2">Export your data regularly to keep a backup. Import to restore from a previous export.</p>
+        <div className="flex gap-1">
+          <button className="btn btn-outline" onClick={() => exportData(data)}>📤 Export Backup</button>
+          <label className="btn btn-outline" style={{ cursor: 'pointer' }}>
+            📥 Import Backup
+            <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
+          </label>
+        </div>
+      </div>
+
+      <div className="flex justify-end" style={{ paddingTop: '0.5rem' }}>
         <button className="btn" onClick={save}>{saved ? '✅ Saved!' : 'Save Profile'}</button>
       </div>
     </div>
