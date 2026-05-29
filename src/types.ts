@@ -33,6 +33,12 @@ export interface Profile {
   krankenkasse?: string;
   krankenkasseMitgliedsnummer?: string;
   sozialversicherungsnummer?: string;
+  ibanMain?: string;
+  bicMain?: string;
+  bankNameMain?: string;
+  ibanSavings?: string;
+  bicSavings?: string;
+  bankNameSavings?: string;
 }
 
 export interface InterviewStage {

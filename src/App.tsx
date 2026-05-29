@@ -590,10 +590,12 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
     <div>
       <div className="page-header">
         <div><h1 className="page-title">Applications</h1><p className="page-subtitle">Track your job applications ({data.applications.length} total)</p></div>
-        <div className="flex gap-1">
-          <button className={`btn btn-sm ${viewMode === 'list' ? '' : 'btn-outline'}`} onClick={() => setViewMode('list')}>☰ List</button>
-          <button className={`btn btn-sm ${viewMode === 'kanban' ? '' : 'btn-outline'}`} onClick={() => setViewMode('kanban')}>⊞ Board</button>
-          <button className="btn" onClick={() => setShowAdd(true)}>+ Add</button>
+        <div className="flex gap-1" style={{ flexWrap: 'wrap' }}>
+          <div className="toggle-group" style={{ margin: 0 }}>
+            <button className={`toggle-option ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}>☰ List</button>
+            <button className={`toggle-option ${viewMode === 'kanban' ? 'active' : ''}`} onClick={() => setViewMode('kanban')}>⊞ Board</button>
+          </div>
+          <button className="btn" onClick={() => setShowAdd(true)}>+ Add Application</button>
         </div>
       </div>
 
@@ -1062,29 +1064,88 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
 }
 
 // ──────────────────────────────────────────────
+// Freelancer salary calc
+// ──────────────────────────────────────────────
+function calcFreelancerNetto(annualProfit: number, churchTax: boolean, hasKids: boolean) {
+  if (!annualProfit || annualProfit <= 0) return null;
+  const grundfreibetrag = 11784;
+  const taxable = Math.max(0, annualProfit - grundfreibetrag);
+
+  let einkommensteuer = 0;
+  if (annualProfit <= grundfreibetrag) {
+    einkommensteuer = 0;
+  } else if (annualProfit <= 17005) {
+    const y = (annualProfit - 11784) / 10000;
+    einkommensteuer = (979.18 * y + 1400) * y;
+  } else if (annualProfit <= 66760) {
+    const z = (annualProfit - 17005) / 10000;
+    einkommensteuer = (192.59 * z + 2397) * z + 966.53;
+  } else if (annualProfit <= 277825) {
+    einkommensteuer = 0.42 * annualProfit - 10602.13;
+  } else {
+    einkommensteuer = 0.45 * annualProfit - 18936.88;
+  }
+  einkommensteuer = Math.max(0, Math.round(einkommensteuer));
+
+  const soli = einkommensteuer > 18130 ? Math.round(einkommensteuer * 0.055) : einkommensteuer > 16581 ? Math.round((einkommensteuer - 16581) * 0.119) : 0;
+  const kirche = churchTax ? Math.round(einkommensteuer * 0.09) : 0;
+
+  // KV + PV (full rate — no employer contribution)
+  const kvBBG = 66150;
+  const kvBase = Math.min(annualProfit, kvBBG);
+  const kv = Math.round(kvBase * 0.162); // 14.6% + avg 1.6% Zusatzbeitrag
+  const pvRate = hasKids ? 0.034 : 0.039;
+  const pv = Math.round(kvBase * pvRate);
+
+  const totalTax = einkommensteuer + soli + kirche;
+  const totalSS = kv + pv;
+  const totalDeductions = totalTax + totalSS;
+  const netAnnual = annualProfit - totalDeductions;
+
+  return { einkommensteuer, soli, kirche, kv, pv, totalTax, totalSS, totalDeductions, netAnnual, monthlyNet: netAnnual / 12, effectiveRate: Math.round((totalDeductions / annualProfit) * 100) };
+}
+
+// ──────────────────────────────────────────────
 // Salary Calculator
 // ──────────────────────────────────────────────
 function SalaryCalcPage() {
+  const [mode, setMode] = useState<'employee' | 'freelancer'>('employee');
   const [gross, setGross] = useState('');
   const [taxClass, setTaxClass] = useState(1);
   const [churchTax, setChurchTax] = useState(false);
   const [showBonus, setShowBonus] = useState(false);
   const [bonusPct, setBonusPct] = useState('');
+  const [hasKids, setHasKids] = useState(true);
+  const [expenses, setExpenses] = useState('');
 
-  const result = calcGermanSalary(Number(gross), taxClass, churchTax);
+  const employeeResult = mode === 'employee' ? calcGermanSalary(Number(gross), taxClass, churchTax) : null;
+  const freelancerProfit = mode === 'freelancer' ? Math.max(0, Number(gross) - Number(expenses || 0)) : 0;
+  const freelancerResult = mode === 'freelancer' ? calcFreelancerNetto(freelancerProfit, churchTax, hasKids) : null;
   const fmt = (n: number) => `€${Math.round(n).toLocaleString('de-DE')}`;
 
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">Brutto/Netto Calculator</h1><p className="page-subtitle">Accurate German salary calculation (2024/2025 rates)</p></div></div>
+      <div className="page-header"><div><h1 className="page-title">Salary Calculator</h1><p className="page-subtitle">German Brutto/Netto — Employee &amp; Freelancer (2024/2025)</p></div></div>
+
+      <div className="toggle-group mb-3" style={{ maxWidth: 320 }}>
+        <button className={`toggle-option ${mode === 'employee' ? 'active' : ''}`} onClick={() => setMode('employee')}>👔 Employee</button>
+        <button className={`toggle-option ${mode === 'freelancer' ? 'active' : ''}`} onClick={() => setMode('freelancer')}>💼 Freelancer</button>
+      </div>
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="card">
           <div className="form-group">
-            <label>Annual Gross Salary (€)</label>
+            <label>{mode === 'employee' ? 'Annual Gross Salary (€)' : 'Annual Revenue / Einnahmen (€)'}</label>
             <input type="number" value={gross} onChange={e => setGross(e.target.value)} placeholder="e.g. 75000" />
           </div>
-          <div className="form-row">
+          {mode === 'freelancer' && (
+            <div className="form-group">
+              <label>Business Expenses / Betriebsausgaben (€)</label>
+              <input type="number" value={expenses} onChange={e => setExpenses(e.target.value)} placeholder="e.g. 10000" />
+              {gross && <p className="text-muted text-xs mt-1">Taxable profit: {fmt(freelancerProfit)}</p>}
+            </div>
+          )}
+          {mode === 'employee' && (
             <div className="form-group">
               <label>Tax Class (Steuerklasse)</label>
               <select value={taxClass} onChange={e => setTaxClass(Number(e.target.value))}>
@@ -1096,76 +1157,112 @@ function SalaryCalcPage() {
                 <option value={6}>VI — Second job</option>
               </select>
             </div>
+          )}
+          <div className="form-row">
             <div className="form-group">
               <label>Church Tax (Kirchensteuer)</label>
               <div className="toggle-group" style={{ marginTop: '0.2rem' }}>
                 <button className={`toggle-option ${!churchTax ? 'active' : ''}`} onClick={() => setChurchTax(false)}>No</button>
-                <button className={`toggle-option ${churchTax ? 'active' : ''}`} onClick={() => setChurchTax(true)}>Yes</button>
+                <button className={`toggle-option ${churchTax ? 'active' : ''}`} onClick={() => setChurchTax(true)}>Yes (9%)</button>
               </div>
             </div>
+            {mode === 'freelancer' && (
+              <div className="form-group">
+                <label>Children (Pflegeversicherung)</label>
+                <div className="toggle-group" style={{ marginTop: '0.2rem' }}>
+                  <button className={`toggle-option ${hasKids ? 'active' : ''}`} onClick={() => setHasKids(true)}>Yes</button>
+                  <button className={`toggle-option ${!hasKids ? 'active' : ''}`} onClick={() => setHasKids(false)}>No (+0.6%)</button>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="form-group">
-            <label>Show Bonus Calculation</label>
-            <div className="toggle-group" style={{ marginTop: '0.2rem' }}>
-              <button className={`toggle-option ${!showBonus ? 'active' : ''}`} onClick={() => setShowBonus(false)}>No</button>
-              <button className={`toggle-option ${showBonus ? 'active' : ''}`} onClick={() => setShowBonus(true)}>Yes</button>
+          {mode === 'employee' && (
+            <>
+              <div className="form-group">
+                <label>Show Bonus Calculation</label>
+                <div className="toggle-group" style={{ marginTop: '0.2rem' }}>
+                  <button className={`toggle-option ${!showBonus ? 'active' : ''}`} onClick={() => setShowBonus(false)}>No</button>
+                  <button className={`toggle-option ${showBonus ? 'active' : ''}`} onClick={() => setShowBonus(true)}>Yes</button>
+                </div>
+              </div>
+              {showBonus && <div className="form-group"><label>Bonus %</label><input type="number" value={bonusPct} onChange={e => setBonusPct(e.target.value)} placeholder="e.g. 10" /></div>}
+            </>
+          )}
+          {mode === 'freelancer' && (
+            <div className="alert alert-info mt-2" style={{ fontSize: '0.82rem' }}>
+              Includes Einkommensteuer, Soli, full KV (16.2%), PV. RV excluded (optional for Freiberufler). Gewerbesteuer not included.
             </div>
-          </div>
-          {showBonus && <div className="form-group"><label>Bonus %</label><input type="number" value={bonusPct} onChange={e => setBonusPct(e.target.value)} placeholder="e.g. 10" /></div>}
+          )}
         </div>
 
-        {result && (
+        {mode === 'employee' && employeeResult && (
           <div>
             <div className="card">
               <h3 className="section-title mb-2">Monthly Breakdown</h3>
-              <div className="salary-breakdown-row salary-gross">
-                <span>Gross (Brutto)</span><span className="fw-600">{fmt(result.monthlyGross)}</span>
-              </div>
-              <div className="salary-breakdown-row salary-deduction">
-                <span>Health Ins. (KV + Pflegeversicherung)</span><span>− {fmt(result.kv + result.pv)}</span>
-              </div>
-              <div className="salary-breakdown-row salary-deduction">
-                <span>Pension (Rentenversicherung)</span><span>− {fmt(result.rv)}</span>
-              </div>
-              <div className="salary-breakdown-row salary-deduction">
-                <span>Unemployment (Arbeitslosenversicherung)</span><span>− {fmt(result.av)}</span>
-              </div>
-              <div className="salary-breakdown-row salary-deduction">
-                <span>Income Tax (Lohnsteuer)</span><span>− {fmt(result.lohnsteuer)}</span>
-              </div>
-              {result.soli > 0 && <div className="salary-breakdown-row salary-deduction"><span>Solidarity (Soli)</span><span>− {fmt(result.soli)}</span></div>}
-              {result.kirchensteuer > 0 && <div className="salary-breakdown-row salary-deduction"><span>Church Tax (Kirchensteuer)</span><span>− {fmt(result.kirchensteuer)}</span></div>}
-              <div className="salary-breakdown-row salary-net">
-                <span>Net (Netto)</span><span className="text-success">{fmt(result.monthlyNet)}</span>
-              </div>
+              <div className="salary-breakdown-row salary-gross"><span>Gross (Brutto)</span><span className="fw-600">{fmt(employeeResult.monthlyGross)}</span></div>
+              <div className="salary-breakdown-row salary-deduction"><span>Health Ins. (KV + PV)</span><span>− {fmt(employeeResult.kv + employeeResult.pv)}</span></div>
+              <div className="salary-breakdown-row salary-deduction"><span>Pension (RV)</span><span>− {fmt(employeeResult.rv)}</span></div>
+              <div className="salary-breakdown-row salary-deduction"><span>Unemployment (AV)</span><span>− {fmt(employeeResult.av)}</span></div>
+              <div className="salary-breakdown-row salary-deduction"><span>Income Tax (Lohnsteuer)</span><span>− {fmt(employeeResult.lohnsteuer)}</span></div>
+              {employeeResult.soli > 0 && <div className="salary-breakdown-row salary-deduction"><span>Soli</span><span>− {fmt(employeeResult.soli)}</span></div>}
+              {employeeResult.kirchensteuer > 0 && <div className="salary-breakdown-row salary-deduction"><span>Kirchensteuer</span><span>− {fmt(employeeResult.kirchensteuer)}</span></div>}
+              <div className="salary-breakdown-row salary-net"><span>Net (Netto)</span><span className="text-success">{fmt(employeeResult.monthlyNet)}</span></div>
             </div>
-
             <div className="card">
               <h3 className="section-title mb-2">Annual Summary</h3>
-              <div className="admin-metric-row"><span>Annual Gross</span><span className="fw-600">{fmt(result.monthlyGross * 12)}</span></div>
-              <div className="admin-metric-row"><span>Total Social Security</span><span>− {fmt(result.totalSS * 12)}</span></div>
-              <div className="admin-metric-row"><span>Total Tax</span><span>− {fmt((result.lohnsteuer + result.soli + result.kirchensteuer) * 12)}</span></div>
-              <div className="admin-metric-row" style={{ fontWeight: 600 }}><span>Annual Net</span><span className="text-success">{fmt(result.annualNet)}</span></div>
-              <div className="admin-metric-row"><span>Effective Tax Rate</span><span>{Math.round((1 - result.monthlyNet / result.monthlyGross) * 100)}%</span></div>
-              {showBonus && bonusPct && (
-                <div className="admin-metric-row"><span>+ Annual Bonus ({bonusPct}%)</span><span className="text-accent fw-600">{fmt(result.monthlyGross * 12 * Number(bonusPct) / 100 * 0.65)}</span></div>
-              )}
+              <div className="admin-metric-row"><span>Annual Gross</span><span className="fw-600">{fmt(employeeResult.monthlyGross * 12)}</span></div>
+              <div className="admin-metric-row"><span>Social Security</span><span>− {fmt(employeeResult.totalSS * 12)}</span></div>
+              <div className="admin-metric-row"><span>Tax</span><span>− {fmt((employeeResult.lohnsteuer + employeeResult.soli + employeeResult.kirchensteuer) * 12)}</span></div>
+              <div className="admin-metric-row" style={{ fontWeight: 600 }}><span>Annual Net</span><span className="text-success">{fmt(employeeResult.annualNet)}</span></div>
+              <div className="admin-metric-row"><span>Effective Rate</span><span>{Math.round((1 - employeeResult.monthlyNet / employeeResult.monthlyGross) * 100)}%</span></div>
+              {showBonus && bonusPct && <div className="admin-metric-row"><span>+ Bonus ({bonusPct}%) net est.</span><span className="text-accent fw-600">{fmt(employeeResult.monthlyGross * 12 * Number(bonusPct) / 100 * 0.65)}</span></div>}
             </div>
           </div>
         )}
 
-        {!result && (
+        {mode === 'freelancer' && freelancerResult && (
+          <div>
+            <div className="card">
+              <h3 className="section-title mb-2">Annual Breakdown</h3>
+              <div className="salary-breakdown-row salary-gross"><span>Revenue (Einnahmen)</span><span className="fw-600">{fmt(Number(gross))}</span></div>
+              {Number(expenses) > 0 && <div className="salary-breakdown-row salary-deduction"><span>Expenses (Betriebsausgaben)</span><span>− {fmt(Number(expenses))}</span></div>}
+              <div className="salary-breakdown-row" style={{ borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}><span className="fw-600">Taxable Profit (Gewinn)</span><span className="fw-600">{fmt(freelancerProfit)}</span></div>
+              <div className="salary-breakdown-row salary-deduction"><span>Einkommensteuer</span><span>− {fmt(freelancerResult.einkommensteuer)}</span></div>
+              {freelancerResult.soli > 0 && <div className="salary-breakdown-row salary-deduction"><span>Solidaritätszuschlag</span><span>− {fmt(freelancerResult.soli)}</span></div>}
+              {freelancerResult.kirche > 0 && <div className="salary-breakdown-row salary-deduction"><span>Kirchensteuer</span><span>− {fmt(freelancerResult.kirche)}</span></div>}
+              <div className="salary-breakdown-row salary-deduction"><span>Krankenversicherung (16.2%)</span><span>− {fmt(freelancerResult.kv)}</span></div>
+              <div className="salary-breakdown-row salary-deduction"><span>Pflegeversicherung ({hasKids ? '3.4' : '3.9'}%)</span><span>− {fmt(freelancerResult.pv)}</span></div>
+              <div className="salary-breakdown-row salary-net"><span>Annual Net</span><span className="text-success">{fmt(freelancerResult.netAnnual)}</span></div>
+            </div>
+            <div className="card">
+              <h3 className="section-title mb-2">Summary</h3>
+              <div className="admin-metric-row"><span>Monthly Net</span><span className="fw-600 text-success">{fmt(freelancerResult.monthlyNet)}</span></div>
+              <div className="admin-metric-row"><span>Total Tax</span><span>− {fmt(freelancerResult.totalTax)}</span></div>
+              <div className="admin-metric-row"><span>Total Social Security</span><span>− {fmt(freelancerResult.totalSS)}</span></div>
+              <div className="admin-metric-row"><span>Effective Rate</span><span>{freelancerResult.effectiveRate}%</span></div>
+              <div className="alert alert-info mt-2" style={{ fontSize: '0.82rem' }}>Set aside ~{Math.min(freelancerResult.effectiveRate + 5, 45)}% of every invoice. Pay quarterly advance tax (Vorauszahlung) to Finanzamt.</div>
+            </div>
+          </div>
+        )}
+
+        {!gross && (
           <div className="card">
-            <h3 className="section-title mb-2">About this calculator</h3>
+            <h3 className="section-title mb-2">{mode === 'employee' ? 'Employee' : 'Freelancer'} calculator</h3>
             <ul style={{ fontSize: '0.9rem', paddingLeft: '1.2rem', lineHeight: 2, color: '#555' }}>
-              <li>Uses 2024/2025 German tax brackets</li>
-              <li>Includes all social security contributions</li>
-              <li>Krankenversicherung (8.9%), Rentenversicherung (9.3%), Pflegeversicherung (1.8%), Arbeitslosenversicherung (1.3%)</li>
-              <li>Social security caps applied (BBG)</li>
-              <li>All 6 tax classes supported</li>
-              <li>Optional church tax (9%)</li>
+              {mode === 'employee' ? <>
+                <li>2024/2025 Lohnsteuer brackets</li>
+                <li>KV 8.9%, RV 9.3%, PV 1.8%, AV 1.3%</li>
+                <li>Social security caps (BBG) applied</li>
+                <li>All 6 Steuerklassen supported</li>
+              </> : <>
+                <li>Einkommensteuer on net profit (Gewinn)</li>
+                <li>Full KV rate 16.2% — no employer split</li>
+                <li>PV 3.4% (3.9% without children)</li>
+                <li>RV excluded (optional for Freiberufler)</li>
+                <li>Deduct business expenses first</li>
+              </>}
             </ul>
-            <div className="alert alert-info mt-2">Enter your gross salary to see the breakdown</div>
+            <div className="alert alert-info mt-2">Enter your {mode === 'employee' ? 'gross salary' : 'annual revenue'} to see the breakdown</div>
           </div>
         )}
       </div>
@@ -1214,8 +1311,8 @@ function ToolkitPage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
           </ul>
         </div>
         <div className="card">
-          <h4 className="fw-600 mb-2">My Tax IDs</h4>
-          <p className="text-muted text-sm mb-3">Store your personal German tax numbers here. Saved securely in your browser.</p>
+          <h4 className="fw-600 mb-2">Tax IDs Reference</h4>
+          <p className="text-muted text-sm mb-2">Enter your personal numbers in <strong>Profile → German Tax & Social Security IDs</strong>.</p>
           <div style={{ display: 'grid', gap: '1.25rem' }}>
             {[
               {
@@ -1581,6 +1678,60 @@ function ProfilePage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
           <div className="form-group"><label>Budget Responsibility</label><input value={(profile as Record<string, unknown>).budgetResponsibility as string || ''} onChange={e => setProfile(p => ({ ...p, budgetResponsibility: e.target.value } as typeof p & { budgetResponsibility: string }))} placeholder="e.g. €500K opex budget" /></div>
         </div>
       )}
+
+      <div className="card mb-3">
+        <h3 className="section-title mb-2">🇩🇪 German Tax & Social Security IDs</h3>
+        <p className="text-muted text-sm mb-3">Stored securely in your browser only. Never shared.</p>
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          {[
+            { key: 'steuerIdNr', label: 'Steueridentifikationsnummer', placeholder: '12 345 678 901', hint: 'Lifetime ID — everyone in Germany. Required on every employment contract.' },
+            { key: 'steuernummer', label: 'Steuernummer', placeholder: '12/345/67890', hint: 'For annual tax return. Assigned by Finanzamt. Freelancers need this on invoices.' },
+            { key: 'ustId', label: 'USt-ID (VAT number)', placeholder: 'DE 123 456 789', hint: 'Freelancers/businesses only. Required for EU invoices to avoid charging VAT.' },
+            { key: 'sozialversicherungsnummer', label: 'Sozialversicherungsnummer', placeholder: '12 345678 A 123', hint: 'Required by every employer. On your Sozialversicherungsausweis card.' },
+            { key: 'krankenkasse', label: 'Krankenkasse (Health Insurer)', placeholder: 'e.g. TK, AOK, Barmer', hint: 'Everyone must have one. Tell your employer so they can register you.' },
+            { key: 'krankenkasseMitgliedsnummer', label: 'Krankenkasse Mitgliedsnummer', placeholder: 'e.g. 123456789', hint: 'Member number on your Gesundheitskarte (health insurance card).' },
+          ].map(({ key, label, placeholder, hint }) => (
+            <div key={key}>
+              <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>{label}</label>
+              <input value={(profile as unknown as Record<string, string>)[key] || ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.9rem', marginBottom: '0.2rem' }} />
+              <div className="text-xs text-muted">{hint}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card mb-3">
+        <h3 className="section-title mb-2">🏦 Bank Accounts</h3>
+        <p className="text-muted text-sm mb-3">Stored locally in your browser only.</p>
+        <div className="grid-2" style={{ gap: '1.5rem' }}>
+          <div>
+            <h4 className="fw-600 text-sm mb-2" style={{ color: 'var(--accent)' }}>Main Account</h4>
+            {[
+              { key: 'bankNameMain', label: 'Bank Name', placeholder: 'e.g. Deutsche Bank, N26, ING' },
+              { key: 'ibanMain', label: 'IBAN', placeholder: 'DE89 3704 0044 0532 0130 00' },
+              { key: 'bicMain', label: 'BIC / SWIFT', placeholder: 'e.g. DEUTDEDB' },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key} className="form-group" style={{ marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.85rem' }}>{label}</label>
+                <input value={(profile as unknown as Record<string, string>)[key] || ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.9rem' }} />
+              </div>
+            ))}
+          </div>
+          <div>
+            <h4 className="fw-600 text-sm mb-2" style={{ color: 'var(--accent)' }}>Savings Account</h4>
+            {[
+              { key: 'bankNameSavings', label: 'Bank Name', placeholder: 'e.g. DKB, Consorsbank' },
+              { key: 'ibanSavings', label: 'IBAN', placeholder: 'DE89 3704 0044 0532 0130 00' },
+              { key: 'bicSavings', label: 'BIC / SWIFT', placeholder: 'e.g. SSKMDEMMXXX' },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key} className="form-group" style={{ marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.85rem' }}>{label}</label>
+                <input value={(profile as unknown as Record<string, string>)[key] || ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.9rem' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div className="card mb-3" style={{ borderLeft: '4px solid var(--accent)' }}>
         <h3 className="section-title mb-2">Data & Backup</h3>
