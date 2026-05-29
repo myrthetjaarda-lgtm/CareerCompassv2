@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   "summary": "2-3 sentence professional summary",
   "skills": ["skill1", "skill2", ...],
   "languages": [{"language": "English", "level": "C2"}, ...],
-  "workExperience": [{"company": "...", "role": "...", "dates": "...", "description": "..."}],
+  "workExperience": [{"company": "...", "role": "...", "dates": "...", "description": "...", "companyRating": "any performance rating or review grade mentioned e.g. 'exceeds expectations', 'sehr gut', 'outstanding' — null if not mentioned"}],
   "education": [{"school": "...", "degree": "...", "year": "..."}],
   "certifications": [{"name": "...", "issuer": "...", "dateIssued": "...", "renewalDate": null, "status": "active"}],
   "achievements": ["achievement1", ...],

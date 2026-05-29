@@ -727,9 +727,10 @@ function CVUploadPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: 
       }
       const res = await fetch('/api/parse-cv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
       if (!res.ok) {
-        if (res.status === 404) throw new Error('CV parsing service is not available. Please contact your admin to configure the API key.');
-        if (res.status === 500) throw new Error('CV parsing service error. Please ensure the ANTHROPIC_API_KEY is configured in Vercel.');
-        throw new Error(`Service error (${res.status}). Please try again later.`);
+        let detail = '';
+        try { const j = await res.json(); detail = j.error || ''; } catch { try { detail = await res.text(); } catch { /* ignore */ } }
+        if (res.status === 404) throw new Error('CV parsing service not found (404). The API functions may not be deployed yet.');
+        throw new Error(`CV parsing failed (${res.status})${detail ? ': ' + detail : '. Check ANTHROPIC_API_KEY in Vercel environment variables.'}`);
       }
       const parsed = await res.json();
       setResult(parsed);
@@ -810,8 +811,8 @@ function CVUploadPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: 
                 <div className="mt-2">
                   <strong>Work History:</strong>
                   <ul style={{ margin: '4px 0 0 16px', fontSize: '0.88rem' }}>
-                    {(result.workExperience as {company:string;role:string;dates:string}[]).map((w, i) => (
-                      <li key={i}><strong>{w.company}</strong> — {w.role} <span className="text-muted">({w.dates})</span></li>
+                    {(result.workExperience as {company:string;role:string;dates:string;companyRating?:string}[]).map((w, i) => (
+                      <li key={i}><strong>{w.company}</strong> — {w.role} <span className="text-muted">({w.dates})</span>{w.companyRating ? <span style={{ color: '#059669', marginLeft: 6 }}>★ {w.companyRating}</span> : null}</li>
                     ))}
                   </ul>
                 </div>
