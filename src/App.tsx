@@ -1786,7 +1786,7 @@ function ProfilePage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
         if (confirm(`Import backup? This will replace all current data.\n\nBackup contains:\n• ${imported.applications.length} applications\n• ${imported.references?.length || 0} references\n• ${imported.offers?.length || 0} offers`)) {
           onUpdate({ ...DEFAULT_DATA, ...imported });
         }
-      } catch { alert('Could not read file. Make sure it is a valid CareerCompass backup.'); }
+      } catch { alert('Could not read file. Make sure it is a valid FlamingoBringo backup.'); }
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -2449,7 +2449,7 @@ export default function App() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)' }}>
         <div style={{ background: 'white', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 4px 30px rgba(0,0,0,0.1)', maxWidth: 420, width: '90%' }}>
-          <h1 style={{ fontFamily: 'Playfair Display', color: 'var(--accent)', fontSize: '2rem', marginBottom: '0.3rem' }}>CareerCompass</h1>
+          <h1 style={{ fontFamily: 'Playfair Display', color: 'var(--accent)', fontSize: '2rem', marginBottom: '0.3rem' }}>FlamingoBringo</h1>
           <p style={{ color: '#888', marginBottom: '2rem', fontSize: '0.9rem' }}>Your job search intelligence platform</p>
           {loginSubmit ? (
             <div>
@@ -2501,7 +2501,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="sidebar">
-        <div className="sidebar-brand">CareerCompass</div>
+        <div className="sidebar-brand">FlamingoBringo</div>
         <div className="sidebar-tagline">Your Career, Navigated</div>
 
         <div className="user-pill">

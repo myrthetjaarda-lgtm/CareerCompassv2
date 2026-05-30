@@ -31,7 +31,7 @@ export function exportData(data: AppData): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `careercompass-export-${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `flamingoBringo-export-${new Date().toISOString().split('T')[0]}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -1,1 +1,1 @@
-{"framework":null,"outputDirectory":"public","cleanUrls":false,"trailingSlash":false,"installCommand":"npm install","buildCommand":""}
+{"framework":null,"outputDirectory":"dist/client","cleanUrls":false,"trailingSlash":false,"installCommand":"npm install","buildCommand":"npm run build"}
