@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppData, Application, Reference, Offer, AppStatus, RefGrade, InterviewStage, Theme, FontSize, ADMIN_EMAIL, STATUS_LABELS, GRADE_LABELS, SECTORS, DEPARTMENTS, CEFR_LEVELS, DEFAULT_DATA, PRO_LIMITS } from './types';
 import { loadData, saveData, exportData } from './storage';
 
@@ -688,7 +688,7 @@ function EmailTemplate({ label, subject, body }: { label: string; subject: strin
 // ──────────────────────────────────────────────
 // Applications Page
 // ──────────────────────────────────────────────
-function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData) => void }) {
+function ApplicationsPage({ data, onUpdate, onOffer }: { data: AppData; onUpdate: (d: AppData) => void; onOffer?: (company: string) => void }) {
   const [filter, setFilter] = useState<AppStatus | 'all'>('all');
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -709,6 +709,8 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
   };
 
   const updateApp = (updated: Application) => {
+    const prev = data.applications.find(a => a.id === updated.id);
+    if (prev && prev.status !== 'offer' && updated.status === 'offer' && onOffer) onOffer(updated.company);
     onUpdate({ ...data, applications: data.applications.map(a => a.id === updated.id ? updated : a) });
   };
 
@@ -784,6 +786,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
                   </div>
                   <div className="app-card-role">{app.role}</div>
                   <div className="app-card-meta">{app.location} • {app.workSetup} • {new Date(app.dateAdded).toLocaleDateString('en-GB')}</div>
+                  {app.notes && <div className="text-xs text-muted mt-1" style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>📝 {app.notes.substring(0, 80)}</div>}
                   {app.matchPercent !== undefined && (
                     <div className="mt-2">
                       <div className="progress-bar" style={{ height: '4px' }}>
@@ -833,7 +836,7 @@ function ApplicationsPage({ data, onUpdate }: { data: AppData; onUpdate: (d: App
 // ──────────────────────────────────────────────
 // CV Upload Page
 // ──────────────────────────────────────────────
-function CVUploadPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: AppData) => void; isPro: boolean }) {
+function CVUploadPage({ data, onUpdate, isPro, onNavigate, onRefPrefill }: { data: AppData; onUpdate: (d: AppData) => void; isPro: boolean; onNavigate?: (p: Page) => void; onRefPrefill?: (p: { company?: string; employmentFrom?: string; employmentTo?: string }) => void }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState('');
@@ -888,7 +891,7 @@ function CVUploadPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: 
     if (result.certifications) profile.certifications = result.certifications as typeof profile.certifications;
     onUpdate({ ...data, profile });
     setResult(null);
-    alert('Profile updated from CV!');
+    if (onNavigate) onNavigate('profile');
   };
 
   return (
@@ -942,7 +945,16 @@ function CVUploadPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: 
                   <strong>Work History:</strong>
                   <ul style={{ margin: '4px 0 0 16px', fontSize: '0.88rem' }}>
                     {(result.workExperience as {company:string;role:string;dates:string;companyRating?:string}[]).map((w, i) => (
-                      <li key={i}><strong>{w.company}</strong> — {w.role} <span className="text-muted">({w.dates})</span>{w.companyRating ? <span style={{ color: '#059669', marginLeft: 6 }}>★ {w.companyRating}</span> : null}</li>
+                      <li key={i} style={{ marginBottom: 6 }}>
+                        <div className="flex items-center justify-between flex-wrap gap-1">
+                          <span><strong>{w.company}</strong> — {w.role} <span className="text-muted">({w.dates})</span>{w.companyRating ? <span style={{ color: '#059669', marginLeft: 6 }}>★ {w.companyRating}</span> : null}</span>
+                          {onNavigate && onRefPrefill && <button className="btn btn-sm btn-outline" style={{ fontSize: '0.75rem' }} onClick={() => {
+                            const parts = (w.dates || '').split(/[-–—]/);
+                            onRefPrefill({ company: w.company, employmentFrom: parts[0]?.trim(), employmentTo: parts[1]?.trim() });
+                            onNavigate('references');
+                          }}>📎 Upload Reference Letter</button>}
+                        </div>
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -1096,7 +1108,7 @@ function JDExtractPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d:
 // ──────────────────────────────────────────────
 // References Page
 // ──────────────────────────────────────────────
-function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d: AppData) => void; isPro: boolean }) {
+function ReferencesPage({ data, onUpdate, isPro, prefill, onClearPrefill }: { data: AppData; onUpdate: (d: AppData) => void; isPro: boolean; prefill?: { company?: string; employmentFrom?: string; employmentTo?: string } | null; onClearPrefill?: () => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Reference | null>(null);
   const [analyseId, setAnalyseId] = useState('');
@@ -1106,6 +1118,15 @@ function ReferencesPage({ data, onUpdate, isPro }: { data: AppData; onUpdate: (d
   const [viewPdf, setViewPdf] = useState<Reference | null>(null);
   const blankForm = { name: '', title: '', company: '', email: '', phone: '', relationship: '', grade: '' as RefGrade | '', notes: '', letterText: '', languageOfLetter: 'en', employmentFrom: '', employmentTo: '', companyGrade: '' };
   const [form, setForm] = useState(blankForm);
+
+  // Auto-open Add modal when navigating from CV upload with prefill
+  React.useEffect(() => {
+    if (prefill) {
+      setForm(f => ({ ...f, company: prefill.company || '', employmentFrom: prefill.employmentFrom || '', employmentTo: prefill.employmentTo || '' }));
+      setShowAdd(true);
+      onClearPrefill?.();
+    }
+  }, [prefill]);
   const [editing, setEditing] = useState<Reference | null>(null);
   const [editForm, setEditForm] = useState(blankForm);
 
@@ -2235,9 +2256,21 @@ function AdminDashboard({ data }: { data: AppData }) {
 // Interviews Page (basic)
 // ──────────────────────────────────────────────
 function InterviewsPage({ data }: { data: AppData }) {
+  const now = new Date();
   const interviews = data.applications.flatMap(app =>
     (app.stages || []).map(s => ({ ...s, appCompany: app.company, appRole: app.role }))
-  ).sort((a, b) => b.date.localeCompare(a.date));
+  ).sort((a, b) => a.date.localeCompare(b.date));
+
+  const countdown = (dateStr: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const diff = Math.round((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return <span className="tag tag-green" style={{ fontSize: '0.75rem' }}>Today!</span>;
+    if (diff === 1) return <span className="tag tag-green" style={{ fontSize: '0.75rem' }}>Tomorrow</span>;
+    if (diff > 1 && diff <= 14) return <span className="tag tag-blue" style={{ fontSize: '0.75rem' }}>In {diff} days</span>;
+    if (diff < 0) return <span className="tag tag-gray" style={{ fontSize: '0.75rem' }}>{Math.abs(diff)}d ago</span>;
+    return null;
+  };
 
   return (
     <div>
@@ -2253,7 +2286,7 @@ function InterviewsPage({ data }: { data: AppData }) {
                 </div>
                 <div className="text-muted text-sm">{s.appRole}</div>
                 <div className="mt-1 fw-600">{s.name || 'Unnamed Stage'}</div>
-                {s.date && <div className="text-sm text-muted">{new Date(s.date).toLocaleDateString('en-GB')}</div>}
+                {s.date && <div className="flex items-center gap-1 mt-1">{new Date(s.date).toLocaleDateString('en-GB')}{countdown(s.date)}</div>}
                 {s.interviewers && <div className="text-xs text-muted mt-1">👥 {s.interviewers}</div>}
                 {s.sentiment && <span className={`tag tag-${s.sentiment === 'positive' ? 'green' : s.sentiment === 'neutral' ? 'gray' : 'red'}`}>{s.sentiment}</span>}
               </div>
@@ -2649,6 +2682,8 @@ function InterviewPrepPage({ data, isPro }: { data: AppData; isPro: boolean }) {
 export default function App() {
   const [data, setData] = useState<AppData>(() => loadData());
   const [page, setPage] = useState<Page>('dashboard');
+  const [refPrefill, setRefPrefill] = useState<{ company?: string; employmentFrom?: string; employmentTo?: string } | null>(null);
+  const [showWinModal, setShowWinModal] = useState<string | null>(null); // company name when offer received
   const [email, setEmail] = useState('');
   const [loginSubmit, setLoginSubmit] = useState(false);
 
@@ -2728,6 +2763,7 @@ export default function App() {
   const fontSize = data.settings?.fontSize || 'medium';
 
   return (
+    <>
     <div className="app">
       <div className="sidebar">
         <div className="sidebar-brand">CareerCompass</div>
@@ -2785,12 +2821,12 @@ export default function App() {
 
       <div className="main-content">
         {page === 'dashboard' && <Dashboard data={data} onNavigate={setPage} />}
-        {page === 'applications' && <ApplicationsPage data={data} onUpdate={setData} />}
-        {page === 'cv-upload' && <CVUploadPage data={data} onUpdate={setData} isPro={data.user.isPro} />}
+        {page === 'applications' && <ApplicationsPage data={data} onUpdate={setData} onOffer={company => setShowWinModal(company)} />}
+        {page === 'cv-upload' && <CVUploadPage data={data} onUpdate={setData} isPro={data.user.isPro} onNavigate={setPage} onRefPrefill={p => { setRefPrefill(p); }} />}
         {page === 'jd-extract' && <JDExtractPage data={data} onUpdate={setData} isPro={data.user.isPro} />}
         {page === 'interview-prep' && <InterviewPrepPage data={data} isPro={data.user.isPro} />}
         {page === 'interviews' && <InterviewsPage data={data} />}
-        {page === 'references' && <ReferencesPage data={data} onUpdate={setData} isPro={data.user.isPro} />}
+        {page === 'references' && <ReferencesPage data={data} onUpdate={setData} isPro={data.user.isPro} prefill={refPrefill} onClearPrefill={() => setRefPrefill(null)} />}
         {page === 'offers' && <OfferComparePage data={data} onUpdate={setData} isPro={data.user.isPro} />}
         {page === 'salary-calc' && <SalaryCalcPage />}
         {page === 'toolkit' && <ToolkitPage data={data} onUpdate={setData} />}
@@ -2798,5 +2834,23 @@ export default function App() {
         {page === 'admin' && data.user.isAdmin && <AdminDashboard data={data} />}
       </div>
     </div>
+
+    {showWinModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: 'white', borderRadius: 16, padding: '2.5rem', maxWidth: 420, width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '0.5rem' }}>🎉</div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>You got an offer!</h2>
+          <p style={{ color: '#666', marginBottom: '1.5rem' }}><strong>{showWinModal}</strong> made you an offer. Congratulations — you earned this!</p>
+          <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: '#15803d' }}>
+            💡 Compare it in <strong>Offer Compare</strong> before you decide. Check salary, benefits, vacation and learning budget side by side.
+          </div>
+          <div className="flex gap-1 justify-center flex-wrap">
+            <button className="btn" onClick={() => { setShowWinModal(null); setPage('offers'); }}>⚖️ Compare Offers</button>
+            <button className="btn btn-outline" onClick={() => setShowWinModal(null)}>Close</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
