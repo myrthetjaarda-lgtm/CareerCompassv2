@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppData, Application, Reference, Offer, AppStatus, RefGrade, InterviewStage, Theme, FontSize, ADMIN_EMAIL, STATUS_LABELS, GRADE_LABELS, SECTORS, DEPARTMENTS, CEFR_LEVELS, DEFAULT_DATA, PRO_LIMITS } from './types';
 import { loadData, saveData, exportData } from './storage';
+import { supabase, loadUserData, saveUserData } from './supabase';
 
 type Page = 'dashboard' | 'applications' | 'cv-upload' | 'jd-extract' | 'interview-prep' | 'interviews' | 'references' | 'offers' | 'salary-calc' | 'toolkit' | 'profile' | 'admin';
 
@@ -2127,7 +2128,26 @@ function ProfilePage({ data, onUpdate }: { data: AppData; onUpdate: (d: AppData)
 // Admin Dashboard
 // ──────────────────────────────────────────────
 function AdminDashboard({ data }: { data: AppData }) {
-  const [section, setSection] = useState('overview');
+  const [section, setSection] = useState('users');
+  const [users, setUsers] = useState<{ id: string; email: string; name: string; isPro: boolean; createdAt: string; applications: number; references: number; offers: number; hasProfile: boolean }[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState('');
+
+  const loadUsers = async () => {
+    setUsersLoading(true); setUsersError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/admin-users', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed'); }
+      const json = await res.json();
+      setUsers(json.users || []);
+    } catch (e: unknown) {
+      setUsersError(e instanceof Error ? e.message : 'Failed to load users');
+    } finally { setUsersLoading(false); }
+  };
+
+  React.useEffect(() => { if (section === 'users') loadUsers(); }, [section]);
 
   const apps = data.applications;
   const byStatus = (s: AppStatus) => apps.filter(a => a.status === s).length;
@@ -2141,8 +2161,8 @@ function AdminDashboard({ data }: { data: AppData }) {
   const storageKB = (storageBytes / 1024).toFixed(1);
 
   const sections = [
-    { id: 'overview', label: '📊 Overview' },
-    { id: 'data', label: '📋 My Data' },
+    { id: 'users', label: '👥 All Users' },
+    { id: 'overview', label: '📊 My Data' },
     { id: 'system', label: '🖥️ System' },
   ];
 
@@ -2163,6 +2183,53 @@ function AdminDashboard({ data }: { data: AppData }) {
       <div className="flex flex-wrap gap-1 mb-3">
         {sections.map(s => <button key={s.id} className={`btn btn-sm ${section === s.id ? '' : 'btn-outline'}`} onClick={() => setSection(s.id)}>{s.label}</button>)}
       </div>
+
+      {section === 'users' && (
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-muted text-sm">{users.length} registered user{users.length !== 1 ? 's' : ''}</p>
+            <button className="btn btn-sm btn-outline" onClick={loadUsers} disabled={usersLoading}>{usersLoading ? 'Loading…' : '↻ Refresh'}</button>
+          </div>
+          {usersError && <div className="alert alert-error mb-2">{usersError}</div>}
+          {usersLoading && <div className="flex items-center gap-1"><div className="spinner" /><span className="text-muted">Loading users…</span></div>}
+          {!usersLoading && users.length === 0 && !usersError && (
+            <div className="card" style={{ textAlign: 'center', color: '#888' }}>
+              <p>No users yet — or SUPABASE_SERVICE_ROLE_KEY not set in Vercel.</p>
+              <p className="text-xs mt-1">Add it in Vercel → Project Settings → Environment Variables.</p>
+            </div>
+          )}
+          {users.length > 0 && (
+            <div className="card" style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                    <th style={{ textAlign: 'left', padding: '8px 10px' }}>Name</th>
+                    <th style={{ textAlign: 'left', padding: '8px 10px' }}>Email</th>
+                    <th style={{ textAlign: 'center', padding: '8px 10px' }}>Tier</th>
+                    <th style={{ textAlign: 'center', padding: '8px 10px' }}>Apps</th>
+                    <th style={{ textAlign: 'center', padding: '8px 10px' }}>Refs</th>
+                    <th style={{ textAlign: 'center', padding: '8px 10px' }}>Offers</th>
+                    <th style={{ textAlign: 'left', padding: '8px 10px' }}>Signed up</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 10px' }}><span className="fw-600">{u.name || '—'}</span></td>
+                      <td style={{ padding: '8px 10px' }}>{u.email}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center' }}><span className={`tag ${u.isPro ? 'tag-green' : 'tag-gray'}`}>{u.isPro ? 'Pro' : 'Free'}</span></td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>{u.applications}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>{u.references}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>{u.offers}</td>
+                      <td style={{ padding: '8px 10px', color: '#888', fontSize: '0.8rem' }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB') : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {section === 'overview' && (
         <div>
@@ -2243,7 +2310,7 @@ function AdminDashboard({ data }: { data: AppData }) {
             <Row label="Stack" value="React + TypeScript" />
             <Row label="Hosting" value="Vercel (static)" />
             <Row label="AI" value="Claude (Anthropic)" />
-            <Row label="Data storage" value="localStorage" />
+            <Row label="Data storage" value="Supabase + localStorage" />
             <Row label="Admin email" value={ADMIN_EMAIL} />
           </div>
         </div>
@@ -2680,14 +2747,96 @@ function InterviewPrepPage({ data, isPro }: { data: AppData; isPro: boolean }) {
 // Main App
 // ──────────────────────────────────────────────
 export default function App() {
-  const [data, setData] = useState<AppData>(() => loadData());
+  const [data, setDataRaw] = useState<AppData>(() => loadData());
   const [page, setPage] = useState<Page>('dashboard');
   const [refPrefill, setRefPrefill] = useState<{ company?: string; employmentFrom?: string; employmentTo?: string } | null>(null);
-  const [showWinModal, setShowWinModal] = useState<string | null>(null); // company name when offer received
-  const [email, setEmail] = useState('');
-  const [loginSubmit, setLoginSubmit] = useState(false);
+  const [showWinModal, setShowWinModal] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<'landing' | 'signin' | 'signup' | 'confirm'>('landing');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authWorking, setAuthWorking] = useState(false);
 
-  useEffect(() => { saveData(data); }, [data]);
+  // Sync data: localStorage + Supabase
+  const setData = useCallback((updater: AppData | ((prev: AppData) => AppData)) => {
+    setDataRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      saveData(next);
+      saveUserData(next).catch(() => {}); // fire-and-forget to Supabase
+      return next;
+    });
+  }, []);
+
+  // On mount: check Supabase session, load cloud data
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const cloudData = await loadUserData();
+        if (cloudData) {
+          const merged: AppData = { ...DEFAULT_DATA, ...cloudData };
+          merged.user = {
+            email: session.user.email || '',
+            name: cloudData.profile?.name || session.user.user_metadata?.name || '',
+            isPro: cloudData.user?.isPro || session.user.email === ADMIN_EMAIL,
+            isAdmin: session.user.email === ADMIN_EMAIL,
+          };
+          setDataRaw(merged);
+          saveData(merged);
+        } else {
+          // First login — migrate localStorage data to Supabase
+          const local = loadData();
+          const merged = { ...local, user: { ...local.user, email: session.user.email || '', isAdmin: session.user.email === ADMIN_EMAIL, isPro: local.user.isPro || session.user.email === ADMIN_EMAIL } };
+          setDataRaw(merged);
+          await saveUserData(merged);
+        }
+      }
+      setAuthLoading(false);
+    };
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const cloudData = await loadUserData();
+        const local = loadData();
+        const base = cloudData || local;
+        const merged: AppData = {
+          ...DEFAULT_DATA, ...base,
+          user: { email: session.user.email || '', name: base?.profile?.name || '', isPro: base?.user?.isPro || session.user.email === ADMIN_EMAIL, isAdmin: session.user.email === ADMIN_EMAIL },
+        };
+        setDataRaw(merged);
+        saveData(merged);
+        if (!cloudData) await saveUserData(merged);
+      } else if (event === 'SIGNED_OUT') {
+        setDataRaw({ ...DEFAULT_DATA });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignUp = async () => {
+    if (!authEmail || !authPassword || !authName) { setAuthError('Please fill in all fields.'); return; }
+    setAuthWorking(true); setAuthError('');
+    const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword, options: { data: { name: authName } } });
+    if (error) { setAuthError(error.message); setAuthWorking(false); return; }
+    setAuthMode('confirm');
+    setAuthWorking(false);
+  };
+
+  const handleSignIn = async () => {
+    if (!authEmail || !authPassword) { setAuthError('Please enter email and password.'); return; }
+    setAuthWorking(true); setAuthError('');
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+    if (error) { setAuthError(error.message); setAuthWorking(false); return; }
+    setAuthWorking(false);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setDataRaw({ ...DEFAULT_DATA });
+  };
 
   // Apply theme and font size to <html>
   useEffect(() => {
@@ -2700,13 +2849,16 @@ export default function App() {
   const setTheme = (theme: Theme) => setData(d => ({ ...d, settings: { ...d.settings, theme } }));
   const setFontSize = (fontSize: FontSize) => setData(d => ({ ...d, settings: { ...d.settings, fontSize } }));
 
-  const handleLogin = () => {
-    if (!email.trim()) return;
-    const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    // Admin gets Pro; everyone else starts on Free
-    setData(d => ({ ...d, user: { ...d.user, email: email.trim(), isAdmin, isPro: isAdmin } }));
-    setLoginSubmit(false);
-  };
+
+
+  if (authLoading) {
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)' }}><div className="spinner" /></div>;
+  }
+
+  const inp = (placeholder: string, value: string, onChange: (v: string) => void, type = 'text') => (
+    <input type={type} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)}
+      style={{ width: '100%', padding: '0.8rem', border: '1px solid var(--border)', borderRadius: '8px', marginBottom: '0.75rem', fontSize: '1rem', boxSizing: 'border-box' }} />
+  );
 
   if (!data.user.email) {
     return (
@@ -2714,27 +2866,45 @@ export default function App() {
         <div style={{ background: 'white', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 4px 30px rgba(0,0,0,0.1)', maxWidth: 420, width: '90%' }}>
           <h1 style={{ fontFamily: 'Playfair Display', color: 'var(--accent)', fontSize: '2rem', marginBottom: '0.3rem' }}>CareerCompass</h1>
           <p style={{ color: '#888', marginBottom: '2rem', fontSize: '0.9rem' }}>Your job search intelligence platform</p>
-          {loginSubmit ? (
-            <div>
-              <p style={{ marginBottom: '1rem', fontWeight: 600 }}>Enter your email to continue</p>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                placeholder="your@email.com"
-                style={{ width: '100%', padding: '0.8rem', border: '1px solid var(--border)', borderRadius: '8px', marginBottom: '1rem', fontSize: '1rem' }}
-                autoFocus
-              />
-              <button className="btn" style={{ width: '100%' }} onClick={handleLogin}>Continue</button>
-              <button className="btn btn-outline" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => setLoginSubmit(false)}>Back</button>
+
+          {authMode === 'confirm' && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📧</div>
+              <p className="fw-600 mb-2">Check your email</p>
+              <p className="text-muted text-sm">We sent a confirmation link to <strong>{authEmail}</strong>. Click it to activate your account, then sign in.</p>
+              <button className="btn btn-outline mt-3" style={{ width: '100%' }} onClick={() => setAuthMode('signin')}>Back to Sign In</button>
             </div>
-          ) : (
+          )}
+
+          {authMode === 'landing' && (
             <div>
-              <button className="btn" style={{ width: '100%', marginBottom: '0.75rem', padding: '0.9rem' }} onClick={() => setLoginSubmit(true)}>
-                Continue with Email
-              </button>
-              <p className="text-muted text-xs" style={{ textAlign: 'center' }}>Your data is stored locally in your browser.</p>
+              <button className="btn" style={{ width: '100%', marginBottom: '0.75rem', padding: '0.9rem' }} onClick={() => { setAuthMode('signup'); setAuthError(''); }}>Create Free Account</button>
+              <button className="btn btn-outline" style={{ width: '100%', padding: '0.9rem' }} onClick={() => { setAuthMode('signin'); setAuthError(''); }}>Sign In</button>
+              <p className="text-muted text-xs mt-2" style={{ textAlign: 'center' }}>Your data syncs across devices and is private to you.</p>
+            </div>
+          )}
+
+          {authMode === 'signup' && (
+            <div>
+              <p className="fw-600 mb-2">Create your account</p>
+              {inp('Your name', authName, setAuthName)}
+              {inp('Email address', authEmail, setAuthEmail, 'email')}
+              {inp('Password (min 6 chars)', authPassword, setAuthPassword, 'password')}
+              {authError && <div className="alert alert-error mb-2" style={{ fontSize: '0.85rem' }}>{authError}</div>}
+              <button className="btn" style={{ width: '100%' }} onClick={handleSignUp} disabled={authWorking}>{authWorking ? 'Creating account…' : 'Create Account'}</button>
+              <button className="btn btn-outline mt-1" style={{ width: '100%' }} onClick={() => { setAuthMode('signin'); setAuthError(''); }}>Already have an account? Sign in</button>
+            </div>
+          )}
+
+          {authMode === 'signin' && (
+            <div>
+              <p className="fw-600 mb-2">Sign in</p>
+              {inp('Email address', authEmail, setAuthEmail, 'email')}
+              {inp('Password', authPassword, setAuthPassword, 'password')}
+              {authError && <div className="alert alert-error mb-2" style={{ fontSize: '0.85rem' }}>{authError}</div>}
+              <button className="btn" style={{ width: '100%' }} onClick={handleSignIn} disabled={authWorking}>{authWorking ? 'Signing in…' : 'Sign In'}</button>
+              <button className="btn btn-outline mt-1" style={{ width: '100%' }} onClick={() => { setAuthMode('signup'); setAuthError(''); }}>No account? Create one free</button>
+              <button className="btn btn-outline mt-1" style={{ width: '100%', fontSize: '0.85rem' }} onClick={() => { setAuthMode('landing'); setAuthError(''); }}>Back</button>
             </div>
           )}
         </div>
@@ -2814,7 +2984,7 @@ export default function App() {
             </div>
           </div>
           <div style={{ padding: '0 0.5rem' }}>
-            <button className="logout-btn" onClick={() => { if (confirm('Log out?')) { setData(d => ({ ...d, user: { ...d.user, email: '' } })); } }}>Logout</button>
+            <button className="logout-btn" onClick={() => { if (confirm('Log out?')) handleSignOut(); }}>Logout</button>
           </div>
         </div>
       </div>
